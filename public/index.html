@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEON SNAKE // CYBERPUNK</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --neon-green:  #00ff9f;
+      --neon-pink:   #ff006e;
+      --neon-blue:   #00d4ff;
+      --neon-yellow: #ffee00;
+      --bg-dark:     #050510;
+      --bg-panel:    rgba(0,10,30,0.85);
+      --grid-color:  rgba(0,212,255,0.06);
+      --glow-green:  0 0 8px #00ff9f, 0 0 20px #00ff9f55;
+      --glow-pink:   0 0 8px #ff006e, 0 0 20px #ff006e55;
+      --glow-blue:   0 0 8px #00d4ff, 0 0 20px #00d4ff55;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--neon-blue);
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-x: hidden;
+      padding: 16px 8px;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.12) 2px,
+        rgba(0,0,0,0.12) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Animated background grid */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+      animation: gridPulse 8s ease-in-out infinite;
+    }
+    @keyframes gridPulse {
+      0%,100% { opacity: 0.6; }
+      50%      { opacity: 1; }
+    }
+
+    header {
+      position: relative; z-index: 1;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    header h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.6rem, 5vw, 2.6rem);
+      font-weight: 900;
+      letter-spacing: 0.18em;
+      color: var(--neon-green);
+      text-shadow: var(--glow-green);
+      animation: titleFlicker 6s infinite;
+    }
+    header p {
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      color: var(--neon-pink);
+      text-shadow: var(--glow-pink);
+      margin-top: 4px;
+    }
+    @keyframes titleFlicker {
+      0%,95%,100% { opacity: 1; }
+      96%          { opacity: 0.6; }
+      97%          { opacity: 1; }
+      98%          { opacity: 0.4; }
+    }
+
+    .layout {
+      position: relative; z-index: 1;
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    /* ── Canvas wrapper ── */
+    .canvas-wrap {
+      position: relative;
+      border: 1px solid var(--neon-blue);
+      box-shadow: 0 0 16px #00d4ff66, inset 0 0 30px #00d4ff0a;
+      flex-shrink: 0;
+    }
+    canvas {
+      display: block;
+      background: #030318;
+    }
+    /* corner decorations */
+    .canvas-wrap::before, .canvas-wrap::after {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      border-color: var(--neon-pink);
+      border-style: solid;
+    }
+    .canvas-wrap::before {
+      top: -1px; left: -1px;
+      border-width: 2px 0 0 2px;
+    }
+    .canvas-wrap::after {
+      bottom: -1px; right: -1px;
+      border-width: 0 2px 2px 0;
+    }
+
+    /* ── Side panel ── */
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 180px;
+      flex: 1;
+    }
+
+    .box {
+      background: var(--bg-panel);
+      border: 1px solid rgba(0,212,255,0.25);
+      padding: 14px 16px;
+      position: relative;
+    }
+    .box-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      color: var(--neon-pink);
+      text-shadow: var(--glow-pink);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    /* Score */
+    .score-val {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--neon-green);
+      text-shadow: var(--glow-green);
+    }
+    .score-label { font-size: 0.62rem; color: #888; letter-spacing: 0.2em; margin-top: 2px; }
+
+    /* Leaderboard */
+    .lb-list { list-style: none; }
+    .lb-list li {
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 0;
+      border-bottom: 1px solid rgba(0,212,255,0.08);
+      font-size: 0.72rem;
+      color: #aaa;
+    }
+    .lb-list li:first-child { color: var(--neon-yellow); text-shadow: 0 0 6px var(--neon-yellow); }
+    .lb-list li .lb-rank { width: 18px; color: #555; }
+    .lb-list li .lb-name { flex: 1; margin: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-list li .lb-score { color: var(--neon-green); }
+
+    /* Controls hint */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 10px;
+      font-size: 0.68rem;
+    }
+    .ctrl-key {
+      color: var(--neon-blue);
+      text-shadow: var(--glow-blue);
+    }
+    .ctrl-desc { color: #777; }
+
+    /* Buttons */
+    .btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      padding: 10px 18px;
+      border: 1px solid var(--neon-green);
+      background: transparent;
+      color: var(--neon-green);
+      text-shadow: var(--glow-green);
+      box-shadow: var(--glow-green);
+      cursor: pointer;
+      transition: all 0.15s;
+      width: 100%;
+      text-transform: uppercase;
+    }
+    .btn:hover {
+      background: var(--neon-green);
+      color: #000;
+      text-shadow: none;
+    }
+    .btn.danger {
+      border-color: var(--neon-pink);
+      color: var(--neon-pink);
+      text-shadow: var(--glow-pink);
+      box-shadow: var(--glow-pink);
+    }
+    .btn.danger:hover { background: var(--neon-pink); color: #000; text-shadow: none; }
+
+    /* Overlay */
+    .overlay {
+      position: absolute; inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(3,3,24,0.88);
+      z-index: 10;
+      gap: 14px;
+      padding: 20px;
+      text-align: center;
+    }
+    .overlay h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1rem, 3vw, 1.5rem);
+      letter-spacing: 0.15em;
+    }
+    .overlay .sub { font-size: 0.7rem; color: #888; letter-spacing: 0.2em; }
+    .overlay input {
+      background: rgba(0,212,255,0.08);
+      border: 1px solid var(--neon-blue);
+      color: var(--neon-blue);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      padding: 8px 14px;
+      text-align: center;
+      width: 180px;
+      outline: none;
+    }
+    .overlay input::placeholder { color: #334; }
+    .overlay .final-score {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2rem;
+      color: var(--neon-green);
+      text-shadow: var(--glow-green);
+    }
+
+    #status-bar {
+      position: relative; z-index: 1;
+      font-size: 0.6rem;
+      letter-spacing: 0.25em;
+      color: #334;
+      margin-top: 10px;
+      text-align: center;
+    }
+    #status-bar span { color: var(--neon-blue); }
+
+    /* Mobile controls */
+    .dpad {
+      display: none;
+      position: relative; z-index: 1;
+      margin-top: 12px;
+    }
+    .dpad-row {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin: 3px 0;
+    }
+    .dpad-btn {
+      width: 52px; height: 52px;
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.3);
+      color: var(--neon-blue);
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .dpad-btn:active { background: rgba(0,212,255,0.25); }
+
+    @media (max-width: 600px) {
+      .dpad { display: block; }
+      .layout { flex-direction: column; align-items: center; }
+      .panel { width: 100%; max-width: 400px; flex-direction: row; flex-wrap: wrap; }
+      .panel .box { flex: 1; min-width: 150px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>NEON SNAKE</h1>
+  <p>// CYBERPUNK EDITION //</p>
+</header>
+
+<div class="layout">
+  <!-- Canvas -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Start overlay -->
+    <div class="overlay" id="overlayStart">
+      <h2 style="color:var(--neon-green);text-shadow:var(--glow-green);">NEON SNAKE</h2>
+      <div class="sub">CYBERPUNK // v2.0</div>
+      <div class="sub">EAT THE GLOWING ORBS<br>AVOID WALLS &amp; YOURSELF</div>
+      <button class="btn" onclick="startGame()">[ START GAME ]</button>
+    </div>
+
+    <!-- Game Over overlay -->
+    <div class="overlay" id="overlayDead" style="display:none;">
+      <h2 style="color:var(--neon-pink);text-shadow:var(--glow-pink);">SYSTEM FAILURE</h2>
+      <div class="final-score" id="finalScore">000</div>
+      <div class="sub">ENTER YOUR CALLSIGN</div>
+      <input id="playerName" type="text" maxlength="12" placeholder="ANONYMOUS" />
+      <button class="btn" onclick="submitScore()">[ UPLOAD SCORE ]</button>
+      <button class="btn danger" onclick="startGame()">[ RETRY ]</button>
+    </div>
+  </div>
+
+  <!-- Side panel -->
+  <div class="panel">
+    <div class="box">
+      <div class="box-title">// SCORE</div>
+      <div class="score-val" id="scoreDisplay">0</div>
+      <div class="score-label">HIGH: <span id="highDisplay">0</span></div>
+    </div>
+
+    <div class="box">
+      <div class="box-title">// TOP 10</div>
+      <ul class="lb-list" id="lbList">
+        <li><span class="lb-rank">#1</span><span class="lb-name">—</span><span class="lb-score">—</span></li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <div class="box-title">// CONTROLS</div>
+      <div class="controls-grid">
+        <span class="ctrl-key">↑↓←→</span><span class="ctrl-desc">MOVE</span>
+        <span class="ctrl-key">WASD</span><span class="ctrl-desc">MOVE</span>
+        <span class="ctrl-key">SPACE</span><span class="ctrl-desc">PAUSE</span>
+        <span class="ctrl-key">R</span><span class="ctrl-desc">RESTART</span>
+      </div>
+    </div>
+
+    <button class="btn" id="pauseBtn" onclick="togglePause()">[ PAUSE ]</button>
+  </div>
+</div>
+
+<!-- Mobile D-pad -->
+<div class="dpad">
+  <div class="dpad-row"><button class="dpad-btn" id="btnUp" ontouchstart="setDir(0,-1)">▲</button></div>
+  <div class="dpad-row">
+    <button class="dpad-btn" id="btnLeft" ontouchstart="setDir(-1,0)">◀</button>
+    <button class="dpad-btn" id="btnDown" ontouchstart="setDir(0,1)">▼</button>
+    <button class="dpad-btn" id="btnRight" ontouchstart="setDir(1,0)">▶</button>
+  </div>
+</div>
+
+<div id="status-bar">SYS: ONLINE | GRID: <span>40×30</span> | RENDER: <span>CANVAS 2D</span></div>
+
+<script>
+// ─── Config ────────────────────────────────────────────────────────────
+const COLS = 28, ROWS = 22, CELL = 18;
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width  = COLS * CELL;
+canvas.height = ROWS * CELL;
+
+// ─── State ─────────────────────────────────────────────────────────────
+let snake, dir, nextDir, food, score, hiScore = 0, gameLoop, paused = false, alive = false;
+let particles = [];
+let frameCount = 0;
+
+// ─── Audio (Web Audio API) ─────────────────────────────────────────────
+let audioCtx;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playTone(freq, type, duration, vol = 0.3, startTime = 0) {
+  try {
+    const ac = getAudio();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ac.currentTime + startTime);
+    gain.gain.setValueAtTime(vol, ac.currentTime + startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + startTime + duration);
+    osc.start(ac.currentTime + startTime);
+    osc.stop(ac.currentTime + startTime + duration + 0.05);
+  } catch(e){}
+}
+function sfxEat()  { playTone(440,'square',0.08,0.2); playTone(660,'square',0.1,0.2,0.06); }
+function sfxDead() {
+  playTone(220,'sawtooth',0.15,0.3);
+  playTone(180,'sawtooth',0.15,0.3,0.12);
+  playTone(120,'sawtooth',0.25,0.3,0.24);
+}
+function sfxMove() { playTone(200,'sine',0.04,0.05); }
+function sfxPause(){ playTone(800,'sine',0.1,0.2); }
+
+// ─── Particles ────────────────────────────────────────────────────────
+function spawnParticles(x, y, color) {
+  for (let i = 0; i < 12; i++) {
+    const angle = (Math.PI * 2 / 12) * i + Math.random() * 0.5;
+    particles.push({
+      x: x * CELL + CELL/2, y: y * CELL + CELL/2,
+      vx: Math.cos(angle) * (2 + Math.random() * 3),
+      vy: Math.sin(angle) * (2 + Math.random() * 3),
+      life: 1, decay: 0.05 + Math.random() * 0.04, color
+    });
+  }
+}
+function updateParticles() {
+  particles = particles.filter(p => p.life > 0);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.92; p.vy *= 0.92;
+    p.life -= p.decay;
+  });
+}
+function drawParticles() {
+  particles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = p.life;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    ctx.restore();
+  });
+}
+
+// ─── Game logic ───────────────────────────────────────────────────────
+function startGame() {
+  document.getElementById('overlayStart').style.display = 'none';
+  document.getElementById('overlayDead').style.display  = 'none';
+  clearInterval(gameLoop);
+  const cx = Math.floor(COLS/2), cy = Math.floor(ROWS/2);
+  snake   = [{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+  dir     = {x:1,y:0};
+  nextDir = {x:1,y:0};
+  score   = 0;
+  paused  = false;
+  alive   = true;
+  particles = [];
+  placeFood();
+  updateScoreUI();
+  document.getElementById('pauseBtn').textContent = '[ PAUSE ]';
+  gameLoop = setInterval(tick, 120);
+}
+
+function placeFood() {
+  let pos;
+  do {
+    pos = { x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS) };
+  } while (snake.some(s => s.x===pos.x && s.y===pos.y));
+  food = pos;
+}
+
+function setDir(dx, dy) {
+  if (!alive || paused) return;
+  if (dx !== 0 && dir.x !== 0) return;
+  if (dy !== 0 && dir.y !== 0) return;
+  nextDir = {x:dx, y:dy};
+}
+
+function togglePause() {
+  if (!alive) return;
+  paused = !paused;
+  document.getElementById('pauseBtn').textContent = paused ? '[ RESUME ]' : '[ PAUSE ]';
+  sfxPause();
+}
+
+function tick() {
+  if (paused) return;
+  frameCount++;
+  dir = nextDir;
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+  if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS ||
+      snake.some(s => s.x === head.x && s.y === head.y)) {
+    alive = false;
+    clearInterval(gameLoop);
+    sfxDead();
+    spawnParticles(snake[0].x, snake[0].y, '#ff006e');
+    setTimeout(showDead, 600);
+    draw(); return;
+  }
+
+  snake.unshift(head);
+  if (head.x === food.x && head.y === food.y) {
+    score += 10;
+    if (score > hiScore) hiScore = score;
+    sfxEat();
+    spawnParticles(food.x, food.y, '#00ff9f');
+    placeFood();
+    updateScoreUI();
+  } else {
+    snake.pop();
+    if (frameCount % 2 === 0) sfxMove();
+  }
+  draw();
+}
+
+function showDead() {
+  document.getElementById('finalScore').textContent = String(score).padStart(3,'0');
+  document.getElementById('overlayDead').style.display = 'flex';
+  document.getElementById('playerName').value = '';
+  document.getElementById('playerName').focus();
+}
+
+function updateScoreUI() {
+  document.getElementById('scoreDisplay').textContent = score;
+  document.getElementById('highDisplay').textContent  = hiScore;
+}
+
+// ─── Drawing ──────────────────────────────────────────────────────────
+const NEON_GREEN  = '#00ff9f';
+const NEON_PINK   = '#ff006e';
+const NEON_BLUE   = '#00d4ff';
+const NEON_YELLOW = '#ffee00';
+
+function glow(color, size) {
+  ctx.shadowColor = color;
+  ctx.shadowBlur  = size;
+}
+function clearGlow() { ctx.shadowBlur = 0; }
+
+function draw() {
+  // Background
+  ctx.fillStyle = '#030318';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(0,212,255,0.05)';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x <= COLS; x++) {
+    ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y <= ROWS; y++) {
+    ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(canvas.width,y*CELL); ctx.stroke();
+  }
+
+  // Food — pulsing orb
+  const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 200);
+  ctx.save();
+  glow(NEON_PINK, 24 * pulse);
+  ctx.fillStyle = NEON_YELLOW;
+  const fx = food.x * CELL + CELL/2, fy = food.y * CELL + CELL/2;
+  ctx.beginPath();
+  ctx.arc(fx, fy, CELL/2 * 0.75 * pulse, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(fx - CELL*0.1, fy - CELL*0.1, CELL*0.1, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // Snake
+  snake.forEach((seg, i) => {
+    const isHead = i === 0;
+    const t = i / snake.length;
+    const x = seg.x * CELL, y = seg.y * CELL;
+    const pad = isHead ? 1 : 2;
+
+    ctx.save();
+    if (isHead) {
+      glow(NEON_GREEN, 20);
+      ctx.fillStyle = NEON_GREEN;
+    } else {
+      const alpha = 0.9 - t * 0.5;
+      glow(NEON_BLUE, 10);
+      ctx.fillStyle = `rgba(0,${Math.floor(180 + 75*(1-t))},${Math.floor(180 + 55*(1-t))},${alpha})`;
+    }
+    ctx.fillRect(x+pad, y+pad, CELL-pad*2, CELL-pad*2);
+
+    // Head eyes
+    if (isHead) {
+      clearGlow();
+      ctx.fillStyle = '#000';
+      const ex1 = dir.x === 0 ? x + CELL*0.28 : x + CELL*0.5 + dir.x*CELL*0.15;
+      const ey1 = dir.y === 0 ? y + CELL*0.28 : y + CELL*0.5 + dir.y*CELL*0.15;
+      const ex2 = dir.x === 0 ? x + CELL*0.72 : ex1;
+      const ey2 = dir.y === 0 ? y + CELL*0.72 : ey1;
+      ctx.beginPath(); ctx.arc(ex1, ey1, 2.2, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex2, ey2, 2.2, 0, Math.PI*2); ctx.fill();
+      // pupils glow
+      ctx.fillStyle = NEON_PINK;
+      glow(NEON_PINK, 6);
+      ctx.beginPath(); ctx.arc(ex1, ey1, 1, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex2, ey2, 1, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  // Particles
+  updateParticles();
+  drawParticles();
+
+  // Pause overlay
+  if (paused) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(3,3,24,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = "bold 18px 'Orbitron', sans-serif";
+    ctx.fillStyle = NEON_BLUE;
+    ctx.shadowColor = NEON_BLUE;
+    ctx.shadowBlur = 16;
+    ctx.textAlign = 'center';
+    ctx.fillText('// PAUSED //', canvas.width/2, canvas.height/2);
+    ctx.restore();
+  }
+}
+
+// ─── Leaderboard ──────────────────────────────────────────────────────
+async function loadLeaderboard() {
+  try {
+    const res = await fetch('/api/leaderboard');
+    const data = await res.json();
+    const ul = document.getElementById('lbList');
+    if (!data.length) {
+      ul.innerHTML = '<li><span class="lb-rank">#1</span><span class="lb-name">—</span><span class="lb-score">—</span></li>';
+      return;
+    }
+    ul.innerHTML = data.map((e,i) =>
+      `<li>
+        <span class="lb-rank">#${i+1}</span>
+        <span class="lb-name">${e.name}</span>
+        <span class="lb-score">${e.score}</span>
+      </li>`
+    ).join('');
+  } catch(err) {
+    console.log('Leaderboard offline');
+  }
+}
+
+async function submitScore() {
+  const name = document.getElementById('playerName').value.trim() || 'ANONYMOUS';
+  try {
+    await fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name, score })
+    });
+    await loadLeaderboard();
+  } catch(e){}
+  startGame();
+}
+
+// ─── Keyboard ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  switch(e.key) {
+    case 'ArrowUp':    case 'w': case 'W': e.preventDefault(); setDir(0,-1);  break;
+    case 'ArrowDown':  case 's': case 'S': e.preventDefault(); setDir(0,1);   break;
+    case 'ArrowLeft':  case 'a': case 'A': e.preventDefault(); setDir(-1,0);  break;
+    case 'ArrowRight': case 'd': case 'D': e.preventDefault(); setDir(1,0);   break;
+    case ' ':                               e.preventDefault(); togglePause(); break;
+    case 'r': case 'R':                     if(alive||!alive) startGame();     break;
+  }
+});
+
+// Enter on name input → submit
+document.getElementById('playerName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitScore();
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────
+loadLeaderboard();
+// Draw empty grid on load
+ctx.fillStyle = '#030318';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+</script>
+</body>
+</html>
