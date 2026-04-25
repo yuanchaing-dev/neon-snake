@@ -131,18 +131,21 @@
     @keyframes 脈動{from{opacity:.7;transform:scale(.97)}to{opacity:1;transform:scale(1.03)}}
 
     /* 手機D-pad */
-    .方向盤{display:none;position:relative;z-index:1;margin-top:10px;touch-action:manipulation;justify-content:center;gap:72px} /* FIXED: 手機版控制拆成左側前後鍵、右側左右鍵 */
-    .方向群{display:flex;flex-direction:column;gap:8px;align-items:center}
-    .方向群.左右{flex-direction:row}
-    .方向鍵{width:54px;height:54px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.28);color:var(--藍);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation} /* FIXED: 避免手機點方向鍵時頁面縮放或選字 */
-    .方向鍵:active{background:rgba(0,212,255,.22)}
+    .方向盤{display:none;position:relative;z-index:1;margin-top:16px;touch-action:manipulation;justify-content:center;width:100%} /* FIXED: 手機方向鍵固定置中於地圖下方 */
+    .方向十字{display:grid;grid-template-columns:72px 72px 72px;grid-template-rows:72px 72px 72px;gap:10px;align-items:center;justify-content:center} /* FIXED: 手機方向鍵改為參考圖的十字形大按鍵 */
+    .方向鍵.上{grid-column:2;grid-row:1}
+    .方向鍵.左{grid-column:1;grid-row:2}
+    .方向鍵.右{grid-column:3;grid-row:2}
+    .方向鍵.下{grid-column:2;grid-row:3}
+    .方向鍵{width:72px;height:72px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.92);border-radius:16px;color:#fff;font-size:1.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation;box-shadow:0 0 10px rgba(255,255,255,.75), inset 0 0 14px rgba(255,255,255,.08);text-shadow:0 0 8px rgba(255,255,255,.9)} /* FIXED: 依參考圖改成白色霓虹大按鍵 */
+    .方向鍵:active{background:rgba(255,255,255,.2);transform:scale(.96)} /* FIXED: 手機按下時保留明確回饋 */
 
     #狀態列{position:relative;z-index:1;font-size:.58rem;letter-spacing:.22em;color:#2a2a3a;margin-top:8px;text-align:center}
     #狀態列 span{color:var(--藍)}
 
     @media(max-width:700px){
       body{padding:8px 6px}
-      .方向盤{display:flex} /* FIXED: 手機顯示左右分組觸控鍵，電腦仍用鍵盤 */
+      .方向盤{display:flex} /* FIXED: 手機顯示十字形觸控鍵，電腦仍用鍵盤 */
       .版面{flex-direction:column;align-items:center;gap:10px}
       .側欄{width:100%;max-width:504px;flex-direction:row;flex-wrap:wrap;gap:8px}
       .側欄 .方塊{flex:1;min-width:145px;padding:10px}
@@ -151,8 +154,8 @@
     @media(max-width:420px){
       header{margin-bottom:6px}
       #關卡橫幅{margin-bottom:7px;padding:4px 12px}
-      .方向盤{gap:44px}
-      .方向鍵{width:48px;height:48px}
+      .方向十字{grid-template-columns:60px 60px 60px;grid-template-rows:60px 60px 60px;gap:8px} /* FIXED: 小螢幕仍維持十字形大按鍵 */
+      .方向鍵{width:60px;height:60px;font-size:1.55rem;border-radius:14px}
       .分數值{font-size:1.55rem}
     }
   </style>
@@ -201,14 +204,13 @@
 
   <!-- 手機方向盤 -->
   <div class="方向盤">
-    <div class="方向群 前後">
-      <button class="方向鍵" type="button" aria-label="前" onpointerdown="觸控設方向(event,0,-1)">▲</button> <!-- FIXED: 手機左側放前鍵 -->
-      <button class="方向鍵" type="button" aria-label="後" onpointerdown="觸控設方向(event,0,1)">▼</button> <!-- FIXED: 手機左側放後鍵 -->
+    <div class="方向十字"> <!-- FIXED: 手機方向鍵改為十字形排法 -->
+      <button class="方向鍵 上" type="button" aria-label="前" onpointerdown="觸控設方向(event,0,-1)">▲</button>
+      <button class="方向鍵 左" type="button" aria-label="左" onpointerdown="觸控設方向(event,-1,0)">◀</button>
+      <button class="方向鍵 右" type="button" aria-label="右" onpointerdown="觸控設方向(event,1,0)">▶</button>
+      <button class="方向鍵 下" type="button" aria-label="後" onpointerdown="觸控設方向(event,0,1)">▼</button>
     </div>
-    <div class="方向群 左右">
-      <button class="方向鍵" type="button" aria-label="左" onpointerdown="觸控設方向(event,-1,0)">◀</button> <!-- FIXED: 手機右側放左鍵 -->
-      <button class="方向鍵" type="button" aria-label="右" onpointerdown="觸控設方向(event,1,0)">▶</button> <!-- FIXED: 手機右側放右鍵 -->
-    </div>
+  </div>
   </div>
   </div>
 
