@@ -1,7 +1,7 @@
 {
-  "name": "neon-snake-v2",
-  "version": "2.0.0",
-  "description": "賽博朋克霓虹貪食蛇 v2 - 多關卡版",
+  "name": "neon-snake-v6",
+  "version": "6.0.0",
+  "description": "賽博朋克霓虹貪食蛇 v6 - 多關卡版",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
