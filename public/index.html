@@ -1,698 +1,811 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NEON SNAKE // CYBERPUNK</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>霓虹貪食蛇 // 賽博朋克</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet"/>
   <style>
     :root {
-      --neon-green:  #00ff9f;
-      --neon-pink:   #ff006e;
-      --neon-blue:   #00d4ff;
-      --neon-yellow: #ffee00;
-      --bg-dark:     #050510;
-      --bg-panel:    rgba(0,10,30,0.85);
-      --grid-color:  rgba(0,212,255,0.06);
-      --glow-green:  0 0 8px #00ff9f, 0 0 20px #00ff9f55;
-      --glow-pink:   0 0 8px #ff006e, 0 0 20px #ff006e55;
-      --glow-blue:   0 0 8px #00d4ff, 0 0 20px #00d4ff55;
+      --綠: #00ff9f; --粉: #ff006e; --藍: #00d4ff; --黃: #ffee00; --橙: #ff8c00;
+      --紫: #bf5fff; --底色: #050510; --面板: rgba(0,8,28,0.88);
+      --格線: rgba(0,212,255,0.05);
+      --發光綠: 0 0 8px #00ff9f,0 0 22px #00ff9f55;
+      --發光粉: 0 0 8px #ff006e,0 0 22px #ff006e55;
+      --發光藍: 0 0 8px #00d4ff,0 0 22px #00d4ff55;
+      --發光黃: 0 0 8px #ffee00,0 0 22px #ffee0055;
+      --發光橙: 0 0 10px #ff8c00,0 0 24px #ff8c0055;
+      --發光紫: 0 0 10px #bf5fff,0 0 24px #bf5fff55;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{
+      background:var(--底色);color:var(--藍);
+      font-family:'Noto Sans TC',sans-serif;
+      min-height:100vh;display:flex;flex-direction:column;
+      align-items:center;padding:12px 8px;overflow-x:hidden;
+    }
+    body::before{
+      content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+      background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.1) 2px,rgba(0,0,0,0.1) 4px);
+    }
+    body::after{
+      content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+      background-image:linear-gradient(var(--格線) 1px,transparent 1px),linear-gradient(90deg,var(--格線) 1px,transparent 1px);
+      background-size:36px 36px;animation:格線脈動 8s ease-in-out infinite;
+    }
+    @keyframes 格線脈動{0%,100%{opacity:.5}50%{opacity:1}}
+
+    header{position:relative;z-index:1;text-align:center;margin-bottom:10px}
+    header h1{
+      font-family:'Orbitron',sans-serif;font-weight:900;
+      font-size:clamp(1.4rem,4.5vw,2.4rem);letter-spacing:.15em;
+      color:var(--綠);text-shadow:var(--發光綠);animation:標題閃爍 7s infinite;
+    }
+    header p{font-size:.68rem;letter-spacing:.3em;color:var(--粉);text-shadow:var(--發光粉);margin-top:3px}
+    @keyframes 標題閃爍{0%,94%,100%{opacity:1}95%{opacity:.5}97%{opacity:.8}98%{opacity:.4}}
+
+    /* 關卡橫幅 */
+    #關卡橫幅{
+      position:relative;z-index:1;
+      font-family:'Orbitron',sans-serif;font-size:.75rem;letter-spacing:.2em;
+      padding:5px 20px;border:1px solid var(--藍);
+      color:var(--藍);text-shadow:var(--發光藍);
+      box-shadow:var(--發光藍);margin-bottom:10px;
+      transition:color .4s,border-color .4s,box-shadow .4s;
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    .版面{position:relative;z-index:1;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;justify-content:center;width:100%;max-width:880px}
 
-    body {
-      background: var(--bg-dark);
-      color: var(--neon-blue);
-      font-family: 'Share Tech Mono', monospace;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      overflow-x: hidden;
-      padding: 16px 8px;
-    }
+    /* 畫布 */
+    .畫布容器{position:relative;border:1px solid var(--藍);box-shadow:0 0 18px #00d4ff55,inset 0 0 30px #00d4ff08;flex-shrink:0}
+    .畫布容器::before,.畫布容器::after{content:'';position:absolute;width:14px;height:14px;border-color:var(--粉);border-style:solid}
+    .畫布容器::before{top:-1px;left:-1px;border-width:2px 0 0 2px}
+    .畫布容器::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+    canvas{display:block;background:#030318}
 
-    /* Scanline overlay */
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.12) 2px,
-        rgba(0,0,0,0.12) 4px
-      );
-      pointer-events: none;
-      z-index: 9999;
-    }
+    /* 側欄 */
+    .側欄{display:flex;flex-direction:column;gap:12px;min-width:170px;flex:1}
+    .方塊{background:var(--面板);border:1px solid rgba(0,212,255,0.22);padding:12px 14px;position:relative}
+    .方塊標題{font-family:'Orbitron',sans-serif;font-size:.6rem;letter-spacing:.25em;color:var(--粉);text-shadow:var(--發光粉);margin-bottom:8px;text-transform:uppercase}
 
-    /* Animated background grid */
-    body::after {
-      content: '';
-      position: fixed; inset: 0;
-      background-image:
-        linear-gradient(var(--grid-color) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      z-index: 0;
-      animation: gridPulse 8s ease-in-out infinite;
-    }
-    @keyframes gridPulse {
-      0%,100% { opacity: 0.6; }
-      50%      { opacity: 1; }
-    }
+    /* 分數 */
+    .分數值{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:900;color:var(--綠);text-shadow:var(--發光綠)}
+    .分數副{font-size:.6rem;color:#666;letter-spacing:.18em;margin-top:2px}
 
-    header {
-      position: relative; z-index: 1;
-      text-align: center;
-      margin-bottom: 14px;
-    }
-    header h1 {
-      font-family: 'Orbitron', sans-serif;
-      font-size: clamp(1.6rem, 5vw, 2.6rem);
-      font-weight: 900;
-      letter-spacing: 0.18em;
-      color: var(--neon-green);
-      text-shadow: var(--glow-green);
-      animation: titleFlicker 6s infinite;
-    }
-    header p {
-      font-size: 0.7rem;
-      letter-spacing: 0.3em;
-      color: var(--neon-pink);
-      text-shadow: var(--glow-pink);
-      margin-top: 4px;
-    }
-    @keyframes titleFlicker {
-      0%,95%,100% { opacity: 1; }
-      96%          { opacity: 0.6; }
-      97%          { opacity: 1; }
-      98%          { opacity: 0.4; }
-    }
+    /* 道具狀態 */
+    .道具格{display:flex;flex-direction:column;gap:5px}
+    .道具列{display:flex;align-items:center;gap:8px;font-size:.72rem}
+    .道具圖示{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:1px solid;font-size:.85rem;flex-shrink:0}
+    .道具圖示.無敵{border-color:var(--紫);color:var(--紫);box-shadow:var(--發光紫)}
+    .道具圖示.雙倍{border-color:var(--黃);color:var(--黃);box-shadow:var(--發光黃)}
+    .道具圖示.炸彈{border-color:var(--橙);color:var(--橙);box-shadow:var(--發光橙)}
+    .道具名稱{flex:1;color:#aaa}
+    .道具條{flex:2;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden}
+    .道具條填充{height:100%;border-radius:2px;transition:width .1s linear}
+    .道具條填充.無敵{background:var(--紫)}
+    .道具條填充.雙倍{background:var(--黃)}
 
-    .layout {
-      position: relative; z-index: 1;
-      display: flex;
-      gap: 18px;
-      align-items: flex-start;
-      flex-wrap: wrap;
-      justify-content: center;
-      width: 100%;
-      max-width: 900px;
-    }
+    /* 排行榜 */
+    .排行榜列表{list-style:none}
+    .排行榜列表 li{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(0,212,255,0.07);font-size:.7rem;color:#888}
+    .排行榜列表 li:first-child{color:var(--黃);text-shadow:0 0 6px var(--黃)}
+    .排行榜列表 li:nth-child(2){color:#c0c0c0}
+    .排行榜列表 li:nth-child(3){color:#cd7f32}
+    .排行榜列表 .名次{width:18px;color:#444}
+    .排行榜列表 .名字{flex:1;margin:0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .排行榜列表 .分{color:var(--綠)}
+    .排行榜列表 .關{color:#555;font-size:.6rem;margin-left:3px}
 
-    /* ── Canvas wrapper ── */
-    .canvas-wrap {
-      position: relative;
-      border: 1px solid var(--neon-blue);
-      box-shadow: 0 0 16px #00d4ff66, inset 0 0 30px #00d4ff0a;
-      flex-shrink: 0;
-    }
-    canvas {
-      display: block;
-      background: #030318;
-    }
-    /* corner decorations */
-    .canvas-wrap::before, .canvas-wrap::after {
-      content: '';
-      position: absolute;
-      width: 12px; height: 12px;
-      border-color: var(--neon-pink);
-      border-style: solid;
-    }
-    .canvas-wrap::before {
-      top: -1px; left: -1px;
-      border-width: 2px 0 0 2px;
-    }
-    .canvas-wrap::after {
-      bottom: -1px; right: -1px;
-      border-width: 0 2px 2px 0;
-    }
+    /* 操控說明 */
+    .操控格{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;font-size:.66rem}
+    .按鍵{color:var(--藍);text-shadow:var(--發光藍)}
+    .說明{color:#666}
 
-    /* ── Side panel ── */
-    .panel {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      min-width: 180px;
-      flex: 1;
-    }
+    /* 按鈕 */
+    .按鈕{font-family:'Orbitron',sans-serif;font-size:.72rem;letter-spacing:.12em;padding:9px 16px;border:1px solid var(--綠);background:transparent;color:var(--綠);text-shadow:var(--發光綠);box-shadow:var(--發光綠);cursor:pointer;transition:all .15s;width:100%}
+    .按鈕:hover{background:var(--綠);color:#000;text-shadow:none}
+    .按鈕.危險{border-color:var(--粉);color:var(--粉);text-shadow:var(--發光粉);box-shadow:var(--發光粉)}
+    .按鈕.危險:hover{background:var(--粉);color:#000;text-shadow:none}
 
-    .box {
-      background: var(--bg-panel);
-      border: 1px solid rgba(0,212,255,0.25);
-      padding: 14px 16px;
-      position: relative;
-    }
-    .box-title {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 0.65rem;
-      letter-spacing: 0.25em;
-      color: var(--neon-pink);
-      text-shadow: var(--glow-pink);
-      margin-bottom: 10px;
-      text-transform: uppercase;
-    }
+    /* 覆蓋層 */
+    .覆蓋{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(3,3,24,.9);z-index:10;gap:12px;padding:20px;text-align:center}
+    .覆蓋 h2{font-family:'Orbitron',sans-serif;font-size:clamp(.9rem,3vw,1.4rem);letter-spacing:.15em}
+    .覆蓋 .副標{font-size:.68rem;color:#666;letter-spacing:.2em;line-height:1.7}
+    .覆蓋 input{background:rgba(0,212,255,.08);border:1px solid var(--藍);color:var(--藍);font-family:'Noto Sans TC',sans-serif;font-size:.9rem;padding:7px 14px;text-align:center;width:200px;outline:none}
+    .覆蓋 input::placeholder{color:#334}
+    .覆蓋 .最終分數{font-family:'Orbitron',sans-serif;font-size:2rem;color:var(--綠);text-shadow:var(--發光綠)}
+    .覆蓋 .關卡達成{font-size:.75rem;letter-spacing:.15em}
 
-    /* Score */
-    .score-val {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 2.2rem;
-      font-weight: 900;
-      color: var(--neon-green);
-      text-shadow: var(--glow-green);
-    }
-    .score-label { font-size: 0.62rem; color: #888; letter-spacing: 0.2em; margin-top: 2px; }
+    /* 關卡過渡 */
+    #關卡過渡{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(3,3,24,.95);z-index:20;gap:10px}
+    #關卡過渡.顯示{display:flex}
+    #關卡過渡 h2{font-family:'Orbitron',sans-serif;font-size:1.6rem;letter-spacing:.2em;animation:脈動 .8s ease-in-out infinite alternate}
+    @keyframes 脈動{from{opacity:.7;transform:scale(.97)}to{opacity:1;transform:scale(1.03)}}
 
-    /* Leaderboard */
-    .lb-list { list-style: none; }
-    .lb-list li {
-      display: flex;
-      justify-content: space-between;
-      padding: 3px 0;
-      border-bottom: 1px solid rgba(0,212,255,0.08);
-      font-size: 0.72rem;
-      color: #aaa;
-    }
-    .lb-list li:first-child { color: var(--neon-yellow); text-shadow: 0 0 6px var(--neon-yellow); }
-    .lb-list li .lb-rank { width: 18px; color: #555; }
-    .lb-list li .lb-name { flex: 1; margin: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .lb-list li .lb-score { color: var(--neon-green); }
+    /* 手機D-pad */
+    .方向盤{display:none;position:relative;z-index:1;margin-top:10px}
+    .方向列{display:flex;justify-content:center;gap:5px;margin:2px 0}
+    .方向鍵{width:54px;height:54px;background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.28);color:var(--藍);font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none}
+    .方向鍵:active{background:rgba(0,212,255,.22)}
 
-    /* Controls hint */
-    .controls-grid {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 4px 10px;
-      font-size: 0.68rem;
-    }
-    .ctrl-key {
-      color: var(--neon-blue);
-      text-shadow: var(--glow-blue);
-    }
-    .ctrl-desc { color: #777; }
+    #狀態列{position:relative;z-index:1;font-size:.58rem;letter-spacing:.22em;color:#2a2a3a;margin-top:8px;text-align:center}
+    #狀態列 span{color:var(--藍)}
 
-    /* Buttons */
-    .btn {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 0.75rem;
-      letter-spacing: 0.15em;
-      padding: 10px 18px;
-      border: 1px solid var(--neon-green);
-      background: transparent;
-      color: var(--neon-green);
-      text-shadow: var(--glow-green);
-      box-shadow: var(--glow-green);
-      cursor: pointer;
-      transition: all 0.15s;
-      width: 100%;
-      text-transform: uppercase;
-    }
-    .btn:hover {
-      background: var(--neon-green);
-      color: #000;
-      text-shadow: none;
-    }
-    .btn.danger {
-      border-color: var(--neon-pink);
-      color: var(--neon-pink);
-      text-shadow: var(--glow-pink);
-      box-shadow: var(--glow-pink);
-    }
-    .btn.danger:hover { background: var(--neon-pink); color: #000; text-shadow: none; }
-
-    /* Overlay */
-    .overlay {
-      position: absolute; inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: rgba(3,3,24,0.88);
-      z-index: 10;
-      gap: 14px;
-      padding: 20px;
-      text-align: center;
-    }
-    .overlay h2 {
-      font-family: 'Orbitron', sans-serif;
-      font-size: clamp(1rem, 3vw, 1.5rem);
-      letter-spacing: 0.15em;
-    }
-    .overlay .sub { font-size: 0.7rem; color: #888; letter-spacing: 0.2em; }
-    .overlay input {
-      background: rgba(0,212,255,0.08);
-      border: 1px solid var(--neon-blue);
-      color: var(--neon-blue);
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 0.9rem;
-      padding: 8px 14px;
-      text-align: center;
-      width: 180px;
-      outline: none;
-    }
-    .overlay input::placeholder { color: #334; }
-    .overlay .final-score {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 2rem;
-      color: var(--neon-green);
-      text-shadow: var(--glow-green);
-    }
-
-    #status-bar {
-      position: relative; z-index: 1;
-      font-size: 0.6rem;
-      letter-spacing: 0.25em;
-      color: #334;
-      margin-top: 10px;
-      text-align: center;
-    }
-    #status-bar span { color: var(--neon-blue); }
-
-    /* Mobile controls */
-    .dpad {
-      display: none;
-      position: relative; z-index: 1;
-      margin-top: 12px;
-    }
-    .dpad-row {
-      display: flex;
-      justify-content: center;
-      gap: 6px;
-      margin: 3px 0;
-    }
-    .dpad-btn {
-      width: 52px; height: 52px;
-      background: rgba(0,212,255,0.08);
-      border: 1px solid rgba(0,212,255,0.3);
-      color: var(--neon-blue);
-      font-size: 1.4rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    .dpad-btn:active { background: rgba(0,212,255,0.25); }
-
-    @media (max-width: 600px) {
-      .dpad { display: block; }
-      .layout { flex-direction: column; align-items: center; }
-      .panel { width: 100%; max-width: 400px; flex-direction: row; flex-wrap: wrap; }
-      .panel .box { flex: 1; min-width: 150px; }
+    @media(max-width:600px){
+      .方向盤{display:block}
+      .版面{flex-direction:column;align-items:center}
+      .側欄{width:100%;max-width:400px;flex-direction:row;flex-wrap:wrap}
+      .側欄 .方塊{flex:1;min-width:140px}
     }
   </style>
 </head>
 <body>
-
 <header>
-  <h1>NEON SNAKE</h1>
-  <p>// CYBERPUNK EDITION //</p>
+  <h1>霓虹貪食蛇</h1>
+  <p>// 賽博朋克版 //</p>
 </header>
 
-<div class="layout">
-  <!-- Canvas -->
-  <div class="canvas-wrap" id="canvasWrap">
-    <canvas id="gameCanvas"></canvas>
+<div id="關卡橫幅">第 1 關 ── 霓虹都市</div>
 
-    <!-- Start overlay -->
-    <div class="overlay" id="overlayStart">
-      <h2 style="color:var(--neon-green);text-shadow:var(--glow-green);">NEON SNAKE</h2>
-      <div class="sub">CYBERPUNK // v2.0</div>
-      <div class="sub">EAT THE GLOWING ORBS<br>AVOID WALLS &amp; YOURSELF</div>
-      <button class="btn" onclick="startGame()">[ START GAME ]</button>
+<div class="版面">
+  <div class="畫布容器" id="畫布容器">
+    <canvas id="遊戲畫布"></canvas>
+
+    <!-- 開始畫面 -->
+    <div class="覆蓋" id="開始畫面">
+      <h2 style="color:var(--綠);text-shadow:var(--發光綠)">霓虹貪食蛇</h2>
+      <div class="副標">賽博朋克版 v2.0<br>吃光霓虹球，到達200分換關</div>
+      <div class="副標">輸入你的玩家名稱</div>
+      <input id="開始玩家名字" type="text" maxlength="12" placeholder="匿名玩家" autocomplete="off"/>
+      <button class="按鈕" onclick="開始遊戲()">【 開始遊戲 】</button>
     </div>
 
-    <!-- Game Over overlay -->
-    <div class="overlay" id="overlayDead" style="display:none;">
-      <h2 style="color:var(--neon-pink);text-shadow:var(--glow-pink);">SYSTEM FAILURE</h2>
-      <div class="final-score" id="finalScore">000</div>
-      <div class="sub">ENTER YOUR CALLSIGN</div>
-      <input id="playerName" type="text" maxlength="12" placeholder="ANONYMOUS" />
-      <button class="btn" onclick="submitScore()">[ UPLOAD SCORE ]</button>
-      <button class="btn danger" onclick="startGame()">[ RETRY ]</button>
+    <!-- 死亡畫面 -->
+    <div class="覆蓋" id="死亡畫面" style="display:none">
+      <h2 style="color:var(--粉);text-shadow:var(--發光粉)">系統崩潰</h2>
+      <div class="最終分數" id="最終分數">000</div>
+      <div class="關卡達成" id="死亡關卡" style="color:var(--藍)">關卡：第1關</div>
+      <div class="副標">玩家代號</div>
+      <input id="玩家名字" type="text" maxlength="12" placeholder="匿名玩家" autocomplete="off"/>
+      <button class="按鈕" onclick="提交分數()">【 上傳分數 】</button>
+      <button class="按鈕 危險" onclick="開始遊戲()">【 再試一次 】</button>
+    </div>
+
+    <!-- 關卡過渡 -->
+    <div id="關卡過渡">
+      <div style="font-size:.75rem;letter-spacing:.3em;color:var(--藍)">// 關卡完成 //</div>
+      <h2 id="過渡標題" style="color:var(--綠)">進入第 2 關</h2>
+      <div id="過渡副標" style="font-size:.7rem;color:#888;letter-spacing:.15em"></div>
     </div>
   </div>
 
-  <!-- Side panel -->
-  <div class="panel">
-    <div class="box">
-      <div class="box-title">// SCORE</div>
-      <div class="score-val" id="scoreDisplay">0</div>
-      <div class="score-label">HIGH: <span id="highDisplay">0</span></div>
+  <!-- 側欄 -->
+  <div class="側欄">
+    <div class="方塊">
+      <div class="方塊標題">// 分數</div>
+      <div class="分數值" id="分數顯示">0</div>
+      <div class="分數副">最高：<span id="最高分顯示">0</span></div>
     </div>
 
-    <div class="box">
-      <div class="box-title">// TOP 10</div>
-      <ul class="lb-list" id="lbList">
-        <li><span class="lb-rank">#1</span><span class="lb-name">—</span><span class="lb-score">—</span></li>
-      </ul>
-    </div>
-
-    <div class="box">
-      <div class="box-title">// CONTROLS</div>
-      <div class="controls-grid">
-        <span class="ctrl-key">↑↓←→</span><span class="ctrl-desc">MOVE</span>
-        <span class="ctrl-key">WASD</span><span class="ctrl-desc">MOVE</span>
-        <span class="ctrl-key">SPACE</span><span class="ctrl-desc">PAUSE</span>
-        <span class="ctrl-key">R</span><span class="ctrl-desc">RESTART</span>
+    <div class="方塊">
+      <div class="方塊標題">// 道具狀態</div>
+      <div class="道具格">
+        <div class="道具列">
+          <div class="道具圖示 無敵">★</div>
+          <span class="道具名稱">無敵</span>
+          <div class="道具條"><div class="道具條填充 無敵" id="無敵條" style="width:0%"></div></div>
+        </div>
+        <div class="道具列">
+          <div class="道具圖示 雙倍">✦</div>
+          <span class="道具名稱">雙倍分</span>
+          <div class="道具條"><div class="道具條填充 雙倍" id="雙倍條" style="width:0%"></div></div>
+        </div>
+        <div class="道具列">
+          <div class="道具圖示 炸彈">✸</div>
+          <span class="道具名稱">炸彈：<span id="炸彈數">0</span> 顆</span>
+        </div>
       </div>
     </div>
 
-    <button class="btn" id="pauseBtn" onclick="togglePause()">[ PAUSE ]</button>
+    <div class="方塊">
+      <div class="方塊標題">// 排行榜</div>
+      <ul class="排行榜列表" id="排行榜列表">
+        <li><span class="名次">#1</span><span class="名字">—</span><span class="分">—</span></li>
+      </ul>
+    </div>
+
+    <div class="方塊">
+      <div class="方塊標題">// 操控</div>
+      <div class="操控格">
+        <span class="按鍵">↑↓←→</span><span class="說明">移動</span>
+        <span class="按鍵">WASD</span><span class="說明">移動</span>
+        <span class="按鍵">空白鍵</span><span class="說明">暫停</span>
+        <span class="按鍵">R</span><span class="說明">重新開始</span>
+      </div>
+    </div>
+
+    <button class="按鈕" id="暫停鈕" onclick="切換暫停()">【 暫停 】</button>
   </div>
 </div>
 
-<!-- Mobile D-pad -->
-<div class="dpad">
-  <div class="dpad-row"><button class="dpad-btn" id="btnUp" ontouchstart="setDir(0,-1)">▲</button></div>
-  <div class="dpad-row">
-    <button class="dpad-btn" id="btnLeft" ontouchstart="setDir(-1,0)">◀</button>
-    <button class="dpad-btn" id="btnDown" ontouchstart="setDir(0,1)">▼</button>
-    <button class="dpad-btn" id="btnRight" ontouchstart="setDir(1,0)">▶</button>
+<!-- 手機方向盤 -->
+<div class="方向盤">
+  <div class="方向列"><button class="方向鍵" ontouchstart="設方向(0,-1)">▲</button></div>
+  <div class="方向列">
+    <button class="方向鍵" ontouchstart="設方向(-1,0)">◀</button>
+    <button class="方向鍵" ontouchstart="設方向(0,1)">▼</button>
+    <button class="方向鍵" ontouchstart="設方向(1,0)">▶</button>
   </div>
 </div>
 
-<div id="status-bar">SYS: ONLINE | GRID: <span>40×30</span> | RENDER: <span>CANVAS 2D</span></div>
+<div id="狀態列">系統：運行中 ｜ 版本：<span>2.0</span> ｜ 引擎：<span>Canvas 2D</span></div>
 
 <script>
-// ─── Config ────────────────────────────────────────────────────────────
-const COLS = 28, ROWS = 22, CELL = 18;
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width  = COLS * CELL;
-canvas.height = ROWS * CELL;
+// ═══════════════════════════════════════════════════════════
+// 關卡定義
+// ═══════════════════════════════════════════════════════════
+const 關卡設定 = [
+  {
+    名稱: '霓虹都市',
+    顏色: '#00ff9f',  // 綠
+    背景: '#030318',
+    蛇頭色: '#00ff9f',
+    蛇身色: '#00d4ff',
+    食物色: '#ffee00',
+    速度: 130,
+    邊界: '矩形',
+    障礙: [],
+    道具機率: { 無敵: 0.05, 雙倍: 0.08, 炸彈: 0.06 },
+  },
+  {
+    名稱: '深淵廢墟',
+    顏色: '#ff006e',
+    背景: '#100308',
+    蛇頭色: '#ff006e',
+    蛇身色: '#bf5fff',
+    食物色: '#ff8c00',
+    速度: 110,
+    邊界: '六角',
+    障礙: [
+      {x:8,y:5},{x:9,y:5},{x:10,y:5},
+      {x:18,y:16},{x:19,y:16},{x:20,y:16},
+      {x:5,y:15},{x:5,y:16},{x:5,y:17},
+      {x:22,y:6},{x:22,y:7},{x:22,y:8},
+    ],
+    道具機率: { 無敵: 0.07, 雙倍: 0.1, 炸彈: 0.1 },
+  },
+  {
+    名稱: '星際核心',
+    顏色: '#00d4ff',
+    背景: '#020a18',
+    蛇頭色: '#00d4ff',
+    蛇身色: '#00ff9f',
+    食物色: '#bf5fff',
+    速度: 90,
+    邊界: '菱形',
+    障礙: [
+      {x:5,y:5},{x:6,y:5},{x:7,y:5},{x:5,y:6},{x:5,y:7},
+      {x:20,y:5},{x:21,y:5},{x:22,y:5},{x:22,y:6},{x:22,y:7},
+      {x:5,y:15},{x:5,y:16},{x:5,y:17},{x:6,y:17},{x:7,y:17},
+      {x:20,y:15},{x:21,y:17},{x:22,y:15},{x:22,y:16},{x:22,y:17},
+    ],
+    道具機率: { 無敵: 0.09, 雙倍: 0.12, 炸彈: 0.13 },
+  },
+];
 
-// ─── State ─────────────────────────────────────────────────────────────
-let snake, dir, nextDir, food, score, hiScore = 0, gameLoop, paused = false, alive = false;
-let particles = [];
-let frameCount = 0;
+// ═══════════════════════════════════════════════════════════
+// 初始化
+// ═══════════════════════════════════════════════════════════
+const 欄數 = 28, 列數 = 22, 格子 = 18;
+const 畫布 = document.getElementById('遊戲畫布');
+const ctx = 畫布.getContext('2d');
+畫布.width = 欄數 * 格子;
+畫布.height = 列數 * 格子;
 
-// ─── Audio (Web Audio API) ─────────────────────────────────────────────
-let audioCtx;
-function getAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return audioCtx;
+// ═══════════════════════════════════════════════════════════
+// 遊戲狀態
+// ═══════════════════════════════════════════════════════════
+let 蛇, 方向, 下個方向, 食物, 道具清單, 粒子;
+let 分數 = 0, 最高分 = 0, 幀數 = 0;
+let 玩家代號 = '匿名玩家';
+let 遊戲循環, 暫停中 = false, 存活 = false;
+let 當前關卡索引 = 0;
+// 道具計時（幀）
+let 無敵剩餘 = 0, 雙倍剩餘 = 0;
+const 道具持續幀 = 80; // ~7秒
+
+// ═══════════════════════════════════════════════════════════
+// 音效
+// ═══════════════════════════════════════════════════════════
+let 音頻上下文;
+function 取音頻() {
+  if (!音頻上下文) 音頻上下文 = new (window.AudioContext || window.webkitAudioContext)();
+  return 音頻上下文;
 }
-function playTone(freq, type, duration, vol = 0.3, startTime = 0) {
+function 播音(頻率, 波形, 時長, 音量=0.25, 延遲=0) {
   try {
-    const ac = getAudio();
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
+    const ac = 取音頻();
+    const osc = ac.createOscillator(), gain = ac.createGain();
     osc.connect(gain); gain.connect(ac.destination);
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, ac.currentTime + startTime);
-    gain.gain.setValueAtTime(vol, ac.currentTime + startTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + startTime + duration);
-    osc.start(ac.currentTime + startTime);
-    osc.stop(ac.currentTime + startTime + duration + 0.05);
+    osc.type = 波形;
+    osc.frequency.setValueAtTime(頻率, ac.currentTime + 延遲);
+    gain.gain.setValueAtTime(音量, ac.currentTime + 延遲);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 延遲 + 時長);
+    osc.start(ac.currentTime + 延遲);
+    osc.stop(ac.currentTime + 延遲 + 時長 + 0.05);
   } catch(e){}
 }
-function sfxEat()  { playTone(440,'square',0.08,0.2); playTone(660,'square',0.1,0.2,0.06); }
-function sfxDead() {
-  playTone(220,'sawtooth',0.15,0.3);
-  playTone(180,'sawtooth',0.15,0.3,0.12);
-  playTone(120,'sawtooth',0.25,0.3,0.24);
+function 吃食音()   { 播音(440,'square',.07,.2); 播音(660,'square',.08,.2,.06); }
+function 死亡音()   { 播音(220,'sawtooth',.15,.3); 播音(160,'sawtooth',.15,.3,.12); 播音(100,'sawtooth',.25,.3,.25); }
+function 移動音()   { 播音(200,'sine',.035,.04); }
+function 暫停音()   { 播音(800,'sine',.1,.18); }
+function 道具音(類型) {
+  if (類型==='無敵') { 播音(880,'square',.1,.25); 播音(1100,'square',.12,.25,.08); }
+  else if (類型==='雙倍') { 播音(550,'triangle',.1,.2); 播音(770,'triangle',.12,.2,.08); }
+  else if (類型==='炸彈') { 播音(300,'sawtooth',.08,.3); 播音(200,'sawtooth',.12,.3,.06); }
 }
-function sfxMove() { playTone(200,'sine',0.04,0.05); }
-function sfxPause(){ playTone(800,'sine',0.1,0.2); }
+function 關卡音() { 播音(440,'square',.1,.2); 播音(550,'square',.1,.2,.1); 播音(660,'square',.15,.2,.2); 播音(880,'square',.2,.2,.3); }
 
-// ─── Particles ────────────────────────────────────────────────────────
-function spawnParticles(x, y, color) {
-  for (let i = 0; i < 12; i++) {
-    const angle = (Math.PI * 2 / 12) * i + Math.random() * 0.5;
-    particles.push({
-      x: x * CELL + CELL/2, y: y * CELL + CELL/2,
-      vx: Math.cos(angle) * (2 + Math.random() * 3),
-      vy: Math.sin(angle) * (2 + Math.random() * 3),
-      life: 1, decay: 0.05 + Math.random() * 0.04, color
+// ═══════════════════════════════════════════════════════════
+// 粒子
+// ═══════════════════════════════════════════════════════════
+function 生成粒子(x, y, 顏色) {
+  for (let i=0;i<14;i++) {
+    const 角 = (Math.PI*2/14)*i + Math.random()*.5;
+    粒子.push({
+      x:x*格子+格子/2, y:y*格子+格子/2,
+      vx:Math.cos(角)*(2+Math.random()*3.5),
+      vy:Math.sin(角)*(2+Math.random()*3.5),
+      生命:1, 衰減:.05+Math.random()*.04, 顏色
     });
   }
 }
-function updateParticles() {
-  particles = particles.filter(p => p.life > 0);
-  particles.forEach(p => {
-    p.x += p.vx; p.y += p.vy;
-    p.vx *= 0.92; p.vy *= 0.92;
-    p.life -= p.decay;
-  });
+function 更新粒子() {
+  粒子 = 粒子.filter(p=>p.生命>0);
+  粒子.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=.91;p.vy*=.91;p.生命-=p.衰減;});
 }
-function drawParticles() {
-  particles.forEach(p => {
-    ctx.save();
-    ctx.globalAlpha = p.life;
-    ctx.shadowColor = p.color;
-    ctx.shadowBlur = 6;
-    ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+function 繪粒子() {
+  粒子.forEach(p=>{
+    ctx.save();ctx.globalAlpha=p.生命;
+    ctx.shadowColor=p.顏色;ctx.shadowBlur=7;
+    ctx.fillStyle=p.顏色;ctx.fillRect(p.x-2,p.y-2,4,4);
     ctx.restore();
   });
 }
 
-// ─── Game logic ───────────────────────────────────────────────────────
-function startGame() {
-  document.getElementById('overlayStart').style.display = 'none';
-  document.getElementById('overlayDead').style.display  = 'none';
-  clearInterval(gameLoop);
-  const cx = Math.floor(COLS/2), cy = Math.floor(ROWS/2);
-  snake   = [{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
-  dir     = {x:1,y:0};
-  nextDir = {x:1,y:0};
-  score   = 0;
-  paused  = false;
-  alive   = true;
-  particles = [];
-  placeFood();
-  updateScoreUI();
-  document.getElementById('pauseBtn').textContent = '[ PAUSE ]';
-  gameLoop = setInterval(tick, 120);
-}
-
-function placeFood() {
-  let pos;
-  do {
-    pos = { x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS) };
-  } while (snake.some(s => s.x===pos.x && s.y===pos.y));
-  food = pos;
-}
-
-function setDir(dx, dy) {
-  if (!alive || paused) return;
-  if (dx !== 0 && dir.x !== 0) return;
-  if (dy !== 0 && dir.y !== 0) return;
-  nextDir = {x:dx, y:dy};
-}
-
-function togglePause() {
-  if (!alive) return;
-  paused = !paused;
-  document.getElementById('pauseBtn').textContent = paused ? '[ RESUME ]' : '[ PAUSE ]';
-  sfxPause();
-}
-
-function tick() {
-  if (paused) return;
-  frameCount++;
-  dir = nextDir;
-  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
-
-  if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS ||
-      snake.some(s => s.x === head.x && s.y === head.y)) {
-    alive = false;
-    clearInterval(gameLoop);
-    sfxDead();
-    spawnParticles(snake[0].x, snake[0].y, '#ff006e');
-    setTimeout(showDead, 600);
-    draw(); return;
+// ═══════════════════════════════════════════════════════════
+// 關卡邊界判斷
+// ═══════════════════════════════════════════════════════════
+function 在邊界內(x, y) {
+  const k = 當前關卡();
+  if (k.邊界 === '矩形') return x>=0 && x<欄數 && y>=0 && y<列數;
+  if (k.邊界 === '六角') {
+    // 中心圓形化邊界（六角形近似）
+    const cx = 欄數/2, cy = 列數/2;
+    const dx = Math.abs(x-cx), dy = Math.abs(y-cy);
+    return dx<=12 && dy<=10 && (dx/12+dy/10)<=1.15;
   }
+  if (k.邊界 === '菱形') {
+    const cx = 欄數/2-0.5, cy = 列數/2-0.5;
+    return Math.abs(x-cx)/12 + Math.abs(y-cy)/10 <= 1;
+  }
+  return x>=0 && x<欄數 && y>=0 && y<列數;
+}
 
-  snake.unshift(head);
-  if (head.x === food.x && head.y === food.y) {
-    score += 10;
-    if (score > hiScore) hiScore = score;
-    sfxEat();
-    spawnParticles(food.x, food.y, '#00ff9f');
-    placeFood();
-    updateScoreUI();
+function 在障礙(x, y) {
+  return 當前關卡().障礙.some(b=>b.x===x&&b.y===y);
+}
+
+function 當前關卡() { return 關卡設定[當前關卡索引]; }
+
+// ═══════════════════════════════════════════════════════════
+// 放置食物/道具
+// ═══════════════════════════════════════════════════════════
+function 有效格子清單() {
+  const 清單=[];
+  for(let x=0;x<欄數;x++) for(let y=0;y<列數;y++) {
+    if (在邊界內(x,y) && !在障礙(x,y) && !蛇.some(s=>s.x===x&&s.y===y))
+      清單.push({x,y});
+  }
+  return 清單;
+}
+function 隨機空格() {
+  const 清單 = 有效格子清單().filter(g=>
+    (!食物||食物.x!==g.x||食物.y!==g.y) &&
+    !道具清單.some(d=>d.x===g.x&&d.y===g.y)
+  );
+  return 清單.length ? 清單[Math.floor(Math.random()*清單.length)] : null;
+}
+function 放食物() {
+  const g = 隨機空格();
+  if (g) 食物 = g;
+}
+function 嘗試放道具() {
+  const k = 當前關卡();
+  // 限制最多3個道具同時存在
+  if (道具清單.length >= 3) return;
+  const r = Math.random();
+  let 類型 = null;
+  if (r < k.道具機率.炸彈) 類型='炸彈';
+  else if (r < k.道具機率.炸彈+k.道具機率.無敵) 類型='無敵';
+  else if (r < k.道具機率.炸彈+k.道具機率.無敵+k.道具機率.雙倍) 類型='雙倍';
+  if (!類型) return;
+  const g = 隨機空格();
+  if (g) 道具清單.push({...g, 類型, 計時:300});
+}
+
+// ═══════════════════════════════════════════════════════════
+// 開始遊戲 / 進入關卡
+// ═══════════════════════════════════════════════════════════
+function 取得玩家名稱() {
+  const 開始輸入 = document.getElementById('開始玩家名字');
+  const 死亡輸入 = document.getElementById('玩家名字');
+  const 來源值 = 開始輸入?.value || 死亡輸入?.value || 玩家代號;
+  玩家代號 = 來源值.trim().slice(0, 12) || '匿名玩家';
+  if (開始輸入) 開始輸入.value = 玩家代號;
+  if (死亡輸入) 死亡輸入.value = 玩家代號;
+  return 玩家代號;
+}
+
+function 開始遊戲() {
+  取得玩家名稱();
+  當前關卡索引 = 0;
+  分數 = 0;
+  進入關卡(false);
+}
+
+function 進入關卡(過渡動畫=true) {
+  const k = 當前關卡();
+  document.getElementById('開始畫面').style.display='none';
+  document.getElementById('死亡畫面').style.display='none';
+  clearInterval(遊戲循環);
+  const cx=Math.floor(欄數/2), cy=Math.floor(列數/2);
+  蛇=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+  方向={x:1,y:0}; 下個方向={x:1,y:0};
+  食物=null; 道具清單=[]; 粒子=[];
+  暫停中=false; 存活=false;
+  無敵剩餘=0; 雙倍剩餘=0;
+  放食物();
+  更新HUD();
+  更新關卡橫幅();
+  document.getElementById('暫停鈕').textContent='【 暫停 】';
+
+  if (過渡動畫) {
+    const 過渡 = document.getElementById('關卡過渡');
+    document.getElementById('過渡標題').textContent=`進入第 ${當前關卡索引+1} 關`;
+    document.getElementById('過渡副標').textContent=k.名稱;
+    過渡.style.color=k.顏色;
+    document.getElementById('過渡標題').style.color=k.顏色;
+    過渡.classList.add('顯示');
+    setTimeout(()=>{ 過渡.classList.remove('顯示'); 存活=true; 遊戲循環=setInterval(遊戲幀,k.速度); },1800);
   } else {
-    snake.pop();
-    if (frameCount % 2 === 0) sfxMove();
-  }
-  draw();
-}
-
-function showDead() {
-  document.getElementById('finalScore').textContent = String(score).padStart(3,'0');
-  document.getElementById('overlayDead').style.display = 'flex';
-  document.getElementById('playerName').value = '';
-  document.getElementById('playerName').focus();
-}
-
-function updateScoreUI() {
-  document.getElementById('scoreDisplay').textContent = score;
-  document.getElementById('highDisplay').textContent  = hiScore;
-}
-
-// ─── Drawing ──────────────────────────────────────────────────────────
-const NEON_GREEN  = '#00ff9f';
-const NEON_PINK   = '#ff006e';
-const NEON_BLUE   = '#00d4ff';
-const NEON_YELLOW = '#ffee00';
-
-function glow(color, size) {
-  ctx.shadowColor = color;
-  ctx.shadowBlur  = size;
-}
-function clearGlow() { ctx.shadowBlur = 0; }
-
-function draw() {
-  // Background
-  ctx.fillStyle = '#030318';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Grid
-  ctx.strokeStyle = 'rgba(0,212,255,0.05)';
-  ctx.lineWidth = 0.5;
-  for (let x = 0; x <= COLS; x++) {
-    ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,canvas.height); ctx.stroke();
-  }
-  for (let y = 0; y <= ROWS; y++) {
-    ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(canvas.width,y*CELL); ctx.stroke();
-  }
-
-  // Food — pulsing orb
-  const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 200);
-  ctx.save();
-  glow(NEON_PINK, 24 * pulse);
-  ctx.fillStyle = NEON_YELLOW;
-  const fx = food.x * CELL + CELL/2, fy = food.y * CELL + CELL/2;
-  ctx.beginPath();
-  ctx.arc(fx, fy, CELL/2 * 0.75 * pulse, 0, Math.PI*2);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(fx - CELL*0.1, fy - CELL*0.1, CELL*0.1, 0, Math.PI*2);
-  ctx.fill();
-  ctx.restore();
-
-  // Snake
-  snake.forEach((seg, i) => {
-    const isHead = i === 0;
-    const t = i / snake.length;
-    const x = seg.x * CELL, y = seg.y * CELL;
-    const pad = isHead ? 1 : 2;
-
-    ctx.save();
-    if (isHead) {
-      glow(NEON_GREEN, 20);
-      ctx.fillStyle = NEON_GREEN;
-    } else {
-      const alpha = 0.9 - t * 0.5;
-      glow(NEON_BLUE, 10);
-      ctx.fillStyle = `rgba(0,${Math.floor(180 + 75*(1-t))},${Math.floor(180 + 55*(1-t))},${alpha})`;
-    }
-    ctx.fillRect(x+pad, y+pad, CELL-pad*2, CELL-pad*2);
-
-    // Head eyes
-    if (isHead) {
-      clearGlow();
-      ctx.fillStyle = '#000';
-      const ex1 = dir.x === 0 ? x + CELL*0.28 : x + CELL*0.5 + dir.x*CELL*0.15;
-      const ey1 = dir.y === 0 ? y + CELL*0.28 : y + CELL*0.5 + dir.y*CELL*0.15;
-      const ex2 = dir.x === 0 ? x + CELL*0.72 : ex1;
-      const ey2 = dir.y === 0 ? y + CELL*0.72 : ey1;
-      ctx.beginPath(); ctx.arc(ex1, ey1, 2.2, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(ex2, ey2, 2.2, 0, Math.PI*2); ctx.fill();
-      // pupils glow
-      ctx.fillStyle = NEON_PINK;
-      glow(NEON_PINK, 6);
-      ctx.beginPath(); ctx.arc(ex1, ey1, 1, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(ex2, ey2, 1, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.restore();
-  });
-
-  // Particles
-  updateParticles();
-  drawParticles();
-
-  // Pause overlay
-  if (paused) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(3,3,24,0.7)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.font = "bold 18px 'Orbitron', sans-serif";
-    ctx.fillStyle = NEON_BLUE;
-    ctx.shadowColor = NEON_BLUE;
-    ctx.shadowBlur = 16;
-    ctx.textAlign = 'center';
-    ctx.fillText('// PAUSED //', canvas.width/2, canvas.height/2);
-    ctx.restore();
+    存活=true;
+    遊戲循環=setInterval(遊戲幀,k.速度);
   }
 }
 
-// ─── Leaderboard ──────────────────────────────────────────────────────
-async function loadLeaderboard() {
-  try {
-    const res = await fetch('/api/leaderboard');
-    const data = await res.json();
-    const ul = document.getElementById('lbList');
-    if (!data.length) {
-      ul.innerHTML = '<li><span class="lb-rank">#1</span><span class="lb-name">—</span><span class="lb-score">—</span></li>';
+function 更新關卡橫幅() {
+  const k = 當前關卡();
+  const 橫 = document.getElementById('關卡橫幅');
+  橫.textContent=`第 ${當前關卡索引+1} 關 ── ${k.名稱}`;
+  橫.style.color=k.顏色;
+  橫.style.borderColor=k.顏色;
+  橫.style.boxShadow=`0 0 8px ${k.顏色}55`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 遊戲主循環
+// ═══════════════════════════════════════════════════════════
+function 遊戲幀() {
+  if (暫停中) return;
+  幀數++;
+  方向={...下個方向};
+  const 新頭={x:蛇[0].x+方向.x, y:蛇[0].y+方向.y};
+
+  // 死亡判定
+  const 無敵中 = 無敵剩餘 > 0;
+  const 撞牆 = !在邊界內(新頭.x, 新頭.y);
+  const 撞障礙 = 在障礙(新頭.x, 新頭.y);
+  const 撞自己 = !無敵中 && 蛇.some(s=>s.x===新頭.x&&s.y===新頭.y);
+
+  if (撞牆||撞障礙||撞自己) {
+    存活=false; clearInterval(遊戲循環);
+    死亡音(); 生成粒子(蛇[0].x, 蛇[0].y, 當前關卡().粉||'#ff006e');
+    setTimeout(顯示死亡畫面, 600);
+    繪圖(); return;
+  }
+
+  蛇.unshift(新頭);
+
+  // 吃食物
+  let 吃了 = false;
+  if (新頭.x===食物.x&&新頭.y===食物.y) {
+    const 加分 = 雙倍剩餘>0 ? 20 : 10;
+    分數+=加分;
+    if (分數>最高分) 最高分=分數;
+    吃食音();
+    生成粒子(食物.x,食物.y,當前關卡().食物色);
+    放食物();
+    更新HUD();
+    吃了=true;
+    // 每20幀嘗試放道具
+    嘗試放道具();
+    // 200分換關
+    if (分數>0 && 分數%200===0 && 當前關卡索引<關卡設定.length-1) {
+      clearInterval(遊戲循環);
+      關卡音();
+      當前關卡索引++;
+      setTimeout(()=>進入關卡(true),400);
       return;
     }
-    ul.innerHTML = data.map((e,i) =>
-      `<li>
-        <span class="lb-rank">#${i+1}</span>
-        <span class="lb-name">${e.name}</span>
-        <span class="lb-score">${e.score}</span>
-      </li>`
-    ).join('');
-  } catch(err) {
-    console.log('Leaderboard offline');
+  }
+  if (!吃了) 蛇.pop();
+
+  // 踩到道具
+  const 踩到索引 = 道具清單.findIndex(d=>d.x===新頭.x&&d.y===新頭.y);
+  if (踩到索引>=0) {
+    const 道具 = 道具清單.splice(踩到索引,1)[0];
+    道具音(道具.類型);
+    生成粒子(道具.x,道具.y,道具.類型==='炸彈'?'#ff8c00':道具.類型==='無敵'?'#bf5fff':'#ffee00');
+    if (道具.類型==='無敵') 無敵剩餘=道具持續幀;
+    else if (道具.類型==='雙倍') 雙倍剩餘=道具持續幀;
+    else if (道具.類型==='炸彈') {
+      // 炸彈即死
+      存活=false; clearInterval(遊戲循環);
+      死亡音();
+      setTimeout(顯示死亡畫面,600);
+      繪圖(); return;
+    }
+  }
+
+  // 倒數道具計時
+  if (無敵剩餘>0) 無敵剩餘--;
+  if (雙倍剩餘>0) 雙倍剩餘--;
+
+  // 道具自然消失計時
+  道具清單 = 道具清單.filter(d=>{d.計時--;return d.計時>0;});
+
+  // 每40幀嘗試刷新道具
+  if (幀數%40===0) 嘗試放道具();
+
+  if (幀數%3===0) 移動音();
+
+  更新道具條();
+  繪圖();
+}
+
+function 顯示死亡畫面() {
+  document.getElementById('最終分數').textContent=String(分數).padStart(3,'0');
+  document.getElementById('死亡關卡').textContent=`關卡：第${當前關卡索引+1}關 ${當前關卡().名稱}`;
+  document.getElementById('死亡畫面').style.display='flex';
+  document.getElementById('玩家名字').value=玩家代號;
+  document.getElementById('玩家名字').focus();
+  document.getElementById('玩家名字').select();
+}
+
+function 更新HUD() {
+  document.getElementById('分數顯示').textContent=分數;
+  document.getElementById('最高分顯示').textContent=最高分;
+}
+
+function 更新道具條() {
+  document.getElementById('無敵條').style.width=(無敵剩餘/道具持續幀*100)+'%';
+  document.getElementById('雙倍條').style.width=(雙倍剩餘/道具持續幀*100)+'%';
+  document.getElementById('炸彈數').textContent=道具清單.filter(d=>d.類型==='炸彈').length;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 繪圖
+// ═══════════════════════════════════════════════════════════
+function 繪圖() {
+  const k = 當前關卡();
+  ctx.fillStyle=k.背景;
+  ctx.fillRect(0,0,畫布.width,畫布.height);
+
+  // 畫格線
+  ctx.strokeStyle='rgba(0,212,255,0.04)';ctx.lineWidth=.5;
+  for(let x=0;x<=欄數;x++){ctx.beginPath();ctx.moveTo(x*格子,0);ctx.lineTo(x*格子,畫布.height);ctx.stroke();}
+  for(let y=0;y<=列數;y++){ctx.beginPath();ctx.moveTo(0,y*格子);ctx.lineTo(畫布.width,y*格子);ctx.stroke();}
+
+  // 畫有效區域遮罩（非矩形關卡）
+  if (k.邊界!=='矩形') {
+    ctx.save();
+    ctx.fillStyle='rgba(3,3,24,0.6)';
+    for(let x=0;x<欄數;x++) for(let y=0;y<列數;y++) {
+      if (!在邊界內(x,y)) ctx.fillRect(x*格子,y*格子,格子,格子);
+    }
+    // 邊界線
+    ctx.strokeStyle=k.顏色+'66';ctx.lineWidth=1;
+    for(let x=0;x<欄數;x++) for(let y=0;y<列數;y++) {
+      if (!在邊界內(x,y)) continue;
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+        if (!在邊界內(x+dx,y+dy)){
+          ctx.beginPath();
+          const bx=x*格子+(dx>0?格子:0), by=y*格子+(dy>0?格子:0);
+          if(dx!==0){ctx.moveTo(bx,y*格子);ctx.lineTo(bx,(y+1)*格子);}
+          else{ctx.moveTo(x*格子,by);ctx.lineTo((x+1)*格子,by);}
+          ctx.stroke();
+        }
+      });
+    }
+    ctx.restore();
+  }
+
+  // 畫障礙
+  k.障礙.forEach(b=>{
+    ctx.save();
+    ctx.fillStyle='#1a0a00';
+    ctx.fillRect(b.x*格子,b.y*格子,格子,格子);
+    ctx.strokeStyle=k.顏色+'88';ctx.lineWidth=1;
+    ctx.strokeRect(b.x*格子+1,b.y*格子+1,格子-2,格子-2);
+    ctx.shadowColor=k.顏色;ctx.shadowBlur=6;
+    ctx.strokeRect(b.x*格子+1,b.y*格子+1,格子-2,格子-2);
+    ctx.restore();
+  });
+
+  // 食物（脈動）
+  if (食物) {
+    const p=.6+.4*Math.sin(Date.now()/180);
+    ctx.save();
+    ctx.shadowColor=k.食物色;ctx.shadowBlur=20*p;
+    ctx.fillStyle=k.食物色;
+    const fx=食物.x*格子+格子/2, fy=食物.y*格子+格子/2;
+    ctx.beginPath();ctx.arc(fx,fy,格子/2*.72*p,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(fx-格子*.1,fy-格子*.1,格子*.1,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+
+  // 道具
+  道具清單.forEach(d=>{
+    const px=d.x*格子+格子/2, py=d.y*格子+格子/2;
+    const p=.5+.5*Math.sin(Date.now()/150+(d.x+d.y));
+    const 顏色=d.類型==='炸彈'?'#ff8c00':d.類型==='無敵'?'#bf5fff':'#ffee00';
+    const 符號=d.類型==='炸彈'?'✸':d.類型==='無敵'?'★':'✦';
+    ctx.save();
+    ctx.shadowColor=顏色;ctx.shadowBlur=16*p;
+    ctx.fillStyle=顏色+'33';
+    ctx.fillRect(d.x*格子+2,d.y*格子+2,格子-4,格子-4);
+    ctx.strokeStyle=顏色;ctx.lineWidth=1;
+    ctx.strokeRect(d.x*格子+2,d.y*格子+2,格子-4,格子-4);
+    ctx.fillStyle=顏色;
+    ctx.font=`${格子*.65}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(符號,px,py);
+    // 即將消失閃爍
+    if(d.計時<60 && Math.floor(Date.now()/200)%2===0) { ctx.globalAlpha=.4; ctx.fillRect(d.x*格子,d.y*格子,格子,格子); }
+    ctx.restore();
+  });
+
+  // 蛇
+  const 無敵發光 = 無敵剩餘>0;
+  蛇.forEach((格,i)=>{
+    const 是頭=i===0;
+    const t=i/蛇.length;
+    const x=格.x*格子, y=格.y*格子;
+    const pad=是頭?1:2;
+    ctx.save();
+    if (是頭) {
+      ctx.shadowColor=無敵發光?'#bf5fff':k.蛇頭色;
+      ctx.shadowBlur=無敵發光?28:20;
+      ctx.fillStyle=無敵發光?'#bf5fff':k.蛇頭色;
+    } else {
+      ctx.shadowColor=k.蛇身色;ctx.shadowBlur=10;
+      const a=.9-t*.5;
+      ctx.fillStyle=k.蛇身色+Math.round(a*255).toString(16).padStart(2,'0');
+    }
+    ctx.fillRect(x+pad,y+pad,格子-pad*2,格子-pad*2);
+    // 蛇眼
+    if (是頭) {
+      ctx.shadowBlur=0;ctx.fillStyle='#000';
+      const ex1=方向.x===0?x+格子*.28:x+格子*.5+方向.x*格子*.15;
+      const ey1=方向.y===0?y+格子*.28:y+格子*.5+方向.y*格子*.15;
+      const ex2=方向.x===0?x+格子*.72:ex1;
+      const ey2=方向.y===0?y+格子*.72:ey1;
+      ctx.beginPath();ctx.arc(ex1,ey1,2.2,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(ex2,ey2,2.2,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ff006e';ctx.shadowColor='#ff006e';ctx.shadowBlur=6;
+      ctx.beginPath();ctx.arc(ex1,ey1,1,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(ex2,ey2,1,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  // 粒子
+  更新粒子();繪粒子();
+
+  // 暫停文字
+  if (暫停中) {
+    ctx.save();
+    ctx.fillStyle='rgba(3,3,24,.72)';ctx.fillRect(0,0,畫布.width,畫布.height);
+    ctx.font="bold 18px 'Orbitron',sans-serif";
+    ctx.fillStyle='#00d4ff';ctx.shadowColor='#00d4ff';ctx.shadowBlur=16;
+    ctx.textAlign='center';ctx.fillText('// 已暫停 //',畫布.width/2,畫布.height/2);
+    ctx.restore();
   }
 }
 
-async function submitScore() {
-  const name = document.getElementById('playerName').value.trim() || 'ANONYMOUS';
+// ═══════════════════════════════════════════════════════════
+// 操控
+// ═══════════════════════════════════════════════════════════
+function 設方向(dx,dy){
+  if(!存活||暫停中) return;
+  if(dx!==0&&方向.x!==0) return;
+  if(dy!==0&&方向.y!==0) return;
+  下個方向={x:dx,y:dy};
+}
+function 切換暫停(){
+  if(!存活) return;
+  暫停中=!暫停中;
+  document.getElementById('暫停鈕').textContent=暫停中?'【 繼續 】':'【 暫停 】';
+  暫停音();
+}
+document.addEventListener('keydown',e=>{
+  switch(e.key){
+    case'ArrowUp':case'w':case'W':e.preventDefault();設方向(0,-1);break;
+    case'ArrowDown':case's':case'S':e.preventDefault();設方向(0,1);break;
+    case'ArrowLeft':case'a':case'A':e.preventDefault();設方向(-1,0);break;
+    case'ArrowRight':case'd':case'D':e.preventDefault();設方向(1,0);break;
+    case' ':e.preventDefault();切換暫停();break;
+    case'r':case'R':開始遊戲();break;
+  }
+});
+document.getElementById('開始玩家名字').addEventListener('keydown',e=>{
+  if(e.key==='Enter') 開始遊戲();
+});
+document.getElementById('玩家名字').addEventListener('keydown',e=>{
+  if(e.key==='Enter') 提交分數();
+});
+
+// ═══════════════════════════════════════════════════════════
+// 排行榜
+// ═══════════════════════════════════════════════════════════
+function 跳脫HTML(值) {
+  return String(值 ?? '').replace(/[&<>'"]/g, 字元 => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[字元]));
+}
+
+async function 載入排行榜() {
   try {
-    await fetch('/api/leaderboard', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ name, score })
-    });
-    await loadLeaderboard();
-  } catch(e){}
-  startGame();
+    const res=await fetch('/api/leaderboard');
+    const data=await res.json();
+    const ul=document.getElementById('排行榜列表');
+    if(!data.length){
+      ul.innerHTML='<li><span class="名次">#1</span><span class="名字">—</span><span class="分">—</span></li>';
+      return;
+    }
+    ul.innerHTML=data.map((e,i)=>`
+      <li>
+        <span class="名次">#${i+1}</span>
+        <span class="名字">${跳脫HTML(e.name)}</span>
+        <span class="分">${e.score}</span>
+        <span class="關">關${e.stage||1}</span>
+      </li>`).join('');
+  } catch(err){console.log('排行榜載入失敗');}
 }
 
-// ─── Keyboard ────────────────────────────────────────────────────────
-document.addEventListener('keydown', e => {
-  switch(e.key) {
-    case 'ArrowUp':    case 'w': case 'W': e.preventDefault(); setDir(0,-1);  break;
-    case 'ArrowDown':  case 's': case 'S': e.preventDefault(); setDir(0,1);   break;
-    case 'ArrowLeft':  case 'a': case 'A': e.preventDefault(); setDir(-1,0);  break;
-    case 'ArrowRight': case 'd': case 'D': e.preventDefault(); setDir(1,0);   break;
-    case ' ':                               e.preventDefault(); togglePause(); break;
-    case 'r': case 'R':                     if(alive||!alive) startGame();     break;
-  }
-});
+async function 提交分數() {
+  const 名字=取得玩家名稱();
+  try {
+    await fetch('/api/leaderboard',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:名字,score:分數,stage:當前關卡索引+1})
+    });
+    await 載入排行榜();
+  } catch(e){}
+  開始遊戲();
+}
 
-// Enter on name input → submit
-document.getElementById('playerName').addEventListener('keydown', e => {
-  if (e.key === 'Enter') submitScore();
-});
-
-// ─── Init ─────────────────────────────────────────────────────────────
-loadLeaderboard();
-// Draw empty grid on load
-ctx.fillStyle = '#030318';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
+// ═══════════════════════════════════════════════════════════
+// 初始畫面
+// ═══════════════════════════════════════════════════════════
+載入排行榜();
+ctx.fillStyle='#030318';ctx.fillRect(0,0,畫布.width,畫布.height);
 </script>
 </body>
 </html>
