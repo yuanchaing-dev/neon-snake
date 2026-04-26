@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>霓虹貪食蛇 // 賽博朋克</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --綠: #00ff9f; --粉: #ff006e; --藍: #00d4ff; --黃: #ffee00; --橙: #ff8c00;
+      --紫: #bf5fff; --底色: #050510; --面板: rgba(0,8,28,0.88);
+      --格線: rgba(0,212,255,0.05);
+      --發光綠: 0 0 8px #00ff9f,0 0 22px #00ff9f55;
+      --發光粉: 0 0 8px #ff006e,0 0 22px #ff006e55;
+      --發光藍: 0 0 8px #00d4ff,0 0 22px #00d4ff55;
+      --發光黃: 0 0 8px #ffee00,0 0 22px #ffee0055;
+      --發光橙: 0 0 10px #ff8c00,0 0 24px #ff8c0055;
+      --發光紫: 0 0 10px #bf5fff,0 0 24px #bf5fff55;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{
+      background:var(--底色);color:var(--藍);
+      font-family:'Noto Sans TC',sans-serif;
+      min-height:100vh;display:flex;flex-direction:column;
+      align-items:center;padding:12px 8px;overflow-x:hidden;
+    }
+    body::before{
+      content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+      background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.1) 2px,rgba(0,0,0,0.1) 4px);
+    }
+    body::after{
+      content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+      background-image:linear-gradient(var(--格線) 1px,transparent 1px),linear-gradient(90deg,var(--格線) 1px,transparent 1px);
+      background-size:36px 36px;animation:格線脈動 8s ease-in-out infinite;
+    }
+    @keyframes 格線脈動{0%,100%{opacity:.5}50%{opacity:1}}
+
+    header{position:relative;z-index:1;text-align:center;margin-bottom:10px}
+    header h1{
+      font-family:'Orbitron',sans-serif;font-weight:900;
+      font-size:clamp(1.4rem,4.5vw,2.4rem);letter-spacing:.15em;
+      color:var(--綠);text-shadow:var(--發光綠);animation:標題閃爍 7s infinite;
+    }
+    header p{font-size:.68rem;letter-spacing:.3em;color:var(--粉);text-shadow:var(--發光粉);margin-top:3px}
+    @keyframes 標題閃爍{0%,94%,100%{opacity:1}95%{opacity:.5}97%{opacity:.8}98%{opacity:.4}}
+
+    /* 關卡橫幅 */
+    #關卡橫幅{
+      position:relative;z-index:1;
+      font-family:'Orbitron',sans-serif;font-size:.75rem;letter-spacing:.2em;
+      padding:5px 20px;border:1px solid var(--藍);
+      color:var(--藍);text-shadow:var(--發光藍);
+      box-shadow:var(--發光藍);margin-bottom:10px;
+      transition:color .4s,border-color .4s,box-shadow .4s;
+    }
+
+    .版面{position:relative;z-index:1;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;justify-content:center;width:100%;max-width:880px}
+    .遊戲區{display:flex;flex-direction:column;align-items:center;flex-shrink:0;max-width:100%} /* FIXED: 手機控制鍵固定放在地圖下方 */
+
+    /* 畫布 */
+    .畫布容器{position:relative;border:1px solid var(--藍);box-shadow:0 0 18px #00d4ff55,inset 0 0 30px #00d4ff08;flex-shrink:0;max-width:100%} /* FIXED: 同一版面支援手機與電腦寬度 */
+    .畫布容器::before,.畫布容器::after{content:'';position:absolute;width:14px;height:14px;border-color:var(--粉);border-style:solid}
+    .畫布容器::before{top:-1px;left:-1px;border-width:2px 0 0 2px}
+    .畫布容器::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+    canvas{display:block;background:#030318;max-width:calc(100vw - 24px);height:auto;touch-action:none} /* FIXED: 電腦維持原尺寸，手機自動縮放且允許觸控滑動 */
+
+    /* 側欄 */
+    .側欄{display:flex;flex-direction:column;gap:12px;min-width:170px;flex:1}
+    .方塊{background:var(--面板);border:1px solid rgba(0,212,255,0.22);padding:12px 14px;position:relative}
+    .方塊標題{font-family:'Orbitron',sans-serif;font-size:.6rem;letter-spacing:.25em;color:var(--粉);text-shadow:var(--發光粉);margin-bottom:8px;text-transform:uppercase}
+
+    /* 分數 */
+    .分數值{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:900;color:var(--綠);text-shadow:var(--發光綠)}
+    .分數副{font-size:.6rem;color:#666;letter-spacing:.18em;margin-top:2px}
+
+    /* 道具狀態 */
+    .道具格{display:flex;flex-direction:column;gap:5px}
+    .道具列{display:flex;align-items:center;gap:8px;font-size:.72rem}
+    .道具圖示{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:1px solid;font-size:.85rem;flex-shrink:0}
+    .道具圖示.無敵{border-color:var(--紫);color:var(--紫);box-shadow:var(--發光紫)}
+    .道具圖示.雙倍{border-color:var(--黃);color:var(--黃);box-shadow:var(--發光黃)}
+    .道具圖示.炸彈{border-color:var(--橙);color:var(--橙);box-shadow:var(--發光橙)}
+    .道具名稱{flex:1;color:#aaa}
+    .道具條{flex:2;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden}
+    .道具條填充{height:100%;border-radius:2px;transition:width .1s linear}
+    .道具條填充.無敵{background:var(--紫)}
+    .道具條填充.雙倍{background:var(--黃)}
+
+    /* 排行榜 */
+    .排行榜列表{list-style:none}
+    .排行榜列表 li{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(0,212,255,0.07);font-size:.7rem;color:#888}
+    .排行榜列表 li:first-child{color:var(--黃);text-shadow:0 0 6px var(--黃)}
+    .排行榜列表 li:nth-child(2){color:#c0c0c0}
+    .排行榜列表 li:nth-child(3){color:#cd7f32}
+    .排行榜列表 .名次{width:18px;color:#444}
+    .排行榜列表 .名字{flex:1;margin:0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .排行榜列表 .分{color:var(--綠)}
+    .排行榜列表 .關{color:#555;font-size:.6rem;margin-left:3px}
+    .我的排名{margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,212,255,0.18);font-size:.68rem;color:var(--藍);letter-spacing:.08em}
+    .我的排名 .標籤{color:#666;font-size:.58rem;margin-bottom:3px}
+    .我的排名 .內容{display:flex;justify-content:space-between;gap:6px}
+    .我的排名 .名字{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ddd}
+    .我的排名 .分{color:var(--綠)}
+
+    /* 操控說明 */
+    .操控格{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;font-size:.66rem}
+    .按鍵{color:var(--藍);text-shadow:var(--發光藍)}
+    .說明{color:#666}
+
+    /* 按鈕 */
+    .按鈕{font-family:'Orbitron',sans-serif;font-size:.72rem;letter-spacing:.12em;padding:9px 16px;border:1px solid var(--綠);background:transparent;color:var(--綠);text-shadow:var(--發光綠);box-shadow:var(--發光綠);cursor:pointer;transition:all .15s;width:100%}
+    .按鈕:hover{background:var(--綠);color:#000;text-shadow:none}
+    .按鈕.危險{border-color:var(--粉);color:var(--粉);text-shadow:var(--發光粉);box-shadow:var(--發光粉)}
+    .按鈕.危險:hover{background:var(--粉);color:#000;text-shadow:none}
+
+    /* 覆蓋層 */
+    .覆蓋{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(3,3,24,.9);z-index:10;gap:12px;padding:20px;text-align:center}
+    .覆蓋 h2{font-family:'Orbitron',sans-serif;font-size:clamp(.9rem,3vw,1.4rem);letter-spacing:.15em}
+    .覆蓋 .副標{font-size:.68rem;color:#666;letter-spacing:.2em;line-height:1.7}
+    .覆蓋 input{background:rgba(0,212,255,.08);border:1px solid var(--藍);color:var(--藍);font-family:'Noto Sans TC',sans-serif;font-size:.9rem;padding:7px 14px;text-align:center;width:200px;outline:none}
+    .覆蓋 input::placeholder{color:#334}
+    .覆蓋 .最終分數{font-family:'Orbitron',sans-serif;font-size:2rem;color:var(--綠);text-shadow:var(--發光綠)}
+    .覆蓋 .關卡達成{font-size:.75rem;letter-spacing:.15em}
+    .覆蓋 .訊息{min-height:1.2em;font-size:.72rem;letter-spacing:.08em;color:var(--黃);text-shadow:var(--發光黃)}
+    .覆蓋 .訊息.錯誤{color:var(--粉);text-shadow:var(--發光粉)}
+
+    /* 關卡過渡 */
+    #關卡過渡{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(3,3,24,.95);z-index:20;gap:10px}
+    #關卡過渡.顯示{display:flex}
+    #關卡過渡 h2{font-family:'Orbitron',sans-serif;font-size:1.6rem;letter-spacing:.2em;animation:脈動 .8s ease-in-out infinite alternate}
+    @keyframes 脈動{from{opacity:.7;transform:scale(.97)}to{opacity:1;transform:scale(1.03)}}
+
+    /* 手機D-pad */
+    .方向盤{display:none;position:relative;z-index:1;margin-top:16px;touch-action:manipulation;justify-content:center;width:100%} /* FIXED: 手機方向鍵固定置中於地圖下方 */
+    .方向十字{display:grid;grid-template-columns:72px 72px 72px;grid-template-rows:72px 72px 72px;gap:10px;align-items:center;justify-content:center} /* FIXED: 手機方向鍵改為參考圖的十字形大按鍵 */
+    .方向鍵.上{grid-column:2;grid-row:1}
+    .方向鍵.左{grid-column:1;grid-row:2}
+    .方向鍵.右{grid-column:3;grid-row:2}
+    .方向鍵.下{grid-column:2;grid-row:3}
+    .方向鍵{width:72px;height:72px;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.92);border-radius:16px;color:#fff;font-size:1.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation;box-shadow:0 0 10px rgba(255,255,255,.75), inset 0 0 14px rgba(255,255,255,.08);text-shadow:0 0 8px rgba(255,255,255,.9)} /* FIXED: 依參考圖改成白色霓虹大按鍵 */
+    .方向鍵:active{background:rgba(255,255,255,.2);transform:scale(.96)} /* FIXED: 手機按下時保留明確回饋 */
+
+    #狀態列{position:relative;z-index:1;font-size:.58rem;letter-spacing:.22em;color:#2a2a3a;margin-top:8px;text-align:center}
+    #狀態列 span{color:var(--藍)}
+
+    @media(max-width:700px){
+      body{padding:8px 6px}
+      .方向盤{display:flex} /* FIXED: 手機顯示十字形觸控鍵，電腦仍用鍵盤 */
+      .版面{flex-direction:column;align-items:center;gap:10px}
+      .側欄{width:100%;max-width:504px;flex-direction:row;flex-wrap:wrap;gap:8px}
+      .側欄 .方塊{flex:1;min-width:145px;padding:10px}
+      .操控格 .按鍵:first-child + .說明::after{content:' / 滑動畫布'} /* FIXED: 手機與電腦操作提示結合 */
+    }
+    @media(max-width:420px){
+      header{margin-bottom:6px}
+      #關卡橫幅{margin-bottom:7px;padding:4px 12px}
+      .方向十字{grid-template-columns:60px 60px 60px;grid-template-rows:60px 60px 60px;gap:8px} /* FIXED: 小螢幕仍維持十字形大按鍵 */
+      .方向鍵{width:60px;height:60px;font-size:1.55rem;border-radius:14px}
+      .分數值{font-size:1.55rem}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>霓虹貪食蛇</h1>
+  <p>// 賽博朋克版 //</p>
+</header>
+
+<div id="關卡橫幅">第 1 關 ── 霓虹都市</div>
+
+<div class="版面">
+  <div class="遊戲區"> <!-- FIXED: 將地圖與手機控制鍵包在同一欄，控制鍵固定在地圖下方 -->
+  <div class="畫布容器" id="畫布容器">
+    <canvas id="遊戲畫布"></canvas>
+
+    <!-- 開始畫面 -->
+    <div class="覆蓋" id="開始畫面">
+      <h2 style="color:var(--綠);text-shadow:var(--發光綠)">霓虹貪食蛇</h2>
+      <div class="副標">賽博朋克版 v2.0<br>第1關200分｜第2關50分｜第3關70分</div>
+      <div class="副標">輸入你的玩家名稱</div>
+      <input id="開始玩家名字" type="text" maxlength="12" placeholder="匿名玩家" autocomplete="off"/>
+      <button class="按鈕" onclick="開始遊戲()">【 開始遊戲 】</button>
+    </div>
+
+    <!-- 死亡畫面 -->
+    <div class="覆蓋" id="死亡畫面" style="display:none">
+      <h2 style="color:var(--粉);text-shadow:var(--發光粉)">遊戲結束</h2>
+      <div class="最終分數" id="最終分數">000</div>
+      <div class="關卡達成" id="死亡關卡" style="color:var(--藍)">關卡：第1關</div>
+      <div class="副標">玩家代號</div>
+      <input id="玩家名字" type="text" maxlength="12" placeholder="匿名玩家" autocomplete="off"/>
+      <div class="訊息" id="上傳訊息"></div>
+      <button class="按鈕" id="上傳分數鈕" onclick="提交分數()" style="display:none">【 已記錄到排行榜 】</button>
+      <button class="按鈕 危險" onclick="開始遊戲()">【 再試一次 】</button>
+    </div>
+
+    <!-- 關卡過渡 -->
+    <div id="關卡過渡">
+      <div style="font-size:.75rem;letter-spacing:.3em;color:var(--藍)">// 關卡完成 //</div>
+      <h2 id="過渡標題" style="color:var(--綠)">進入第 2 關</h2>
+      <div id="過渡副標" style="font-size:.7rem;color:#888;letter-spacing:.15em"></div>
+    </div>
+  </div>
+
+  <!-- 手機方向盤 -->
+  <div class="方向盤">
+    <div class="方向十字"> <!-- FIXED: 手機方向鍵改為十字形排法 -->
+      <button class="方向鍵 上" type="button" aria-label="前" onpointerdown="觸控設方向(event,0,-1)">▲</button>
+      <button class="方向鍵 左" type="button" aria-label="左" onpointerdown="觸控設方向(event,-1,0)">◀</button>
+      <button class="方向鍵 右" type="button" aria-label="右" onpointerdown="觸控設方向(event,1,0)">▶</button>
+      <button class="方向鍵 下" type="button" aria-label="後" onpointerdown="觸控設方向(event,0,1)">▼</button>
+    </div>
+  </div>
+  </div>
+  </div>
+
+  <!-- 側欄 -->
+  <div class="側欄">
+    <div class="方塊">
+      <div class="方塊標題">// 分數</div>
+      <div class="分數值" id="分數顯示">0</div>
+      <div class="分數副">最高：<span id="最高分顯示">0</span></div>
+    </div>
+
+    <div class="方塊">
+      <div class="方塊標題">// 道具狀態</div>
+      <div class="道具格">
+        <div class="道具列">
+          <div class="道具圖示 無敵">★</div>
+          <span class="道具名稱">無敵</span>
+          <div class="道具條"><div class="道具條填充 無敵" id="無敵條" style="width:0%"></div></div>
+        </div>
+        <div class="道具列">
+          <div class="道具圖示 雙倍">✦</div>
+          <span class="道具名稱">雙倍分</span>
+          <div class="道具條"><div class="道具條填充 雙倍" id="雙倍條" style="width:0%"></div></div>
+        </div>
+        <div class="道具列">
+          <div class="道具圖示 炸彈">✸</div>
+          <span class="道具名稱">炸彈：<span id="炸彈數">0</span> 顆</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="方塊">
+      <div class="方塊標題">// 排行榜</div>
+      <ul class="排行榜列表" id="排行榜列表">
+        <li><span class="名次">#1</span><span class="名字">—</span><span class="分">—</span></li>
+      </ul>
+      <div class="我的排名" id="我的排名">
+        <div class="標籤">// 我的成績</div>
+        <div class="內容"><span class="名次">—</span><span class="名字">尚無成績</span><span class="分">—</span></div>
+      </div>
+    </div>
+
+    <div class="方塊">
+      <div class="方塊標題">// 操控</div>
+      <div class="操控格">
+        <span class="按鍵">↑↓←→</span><span class="說明">移動</span>
+        <span class="按鍵">WASD</span><span class="說明">移動</span>
+        <span class="按鍵">空白鍵</span><span class="說明">暫停</span>
+        <span class="按鍵">R</span><span class="說明">重新開始</span>
+      </div>
+    </div>
+
+    <button class="按鈕" id="暫停鈕" onclick="切換暫停()">【 暫停 】</button>
+  </div>
+</div>
+
+
+<div id="狀態列">系統：運行中 ｜ 版本：<span>2.0</span> ｜ 引擎：<span>Canvas 2D</span></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// 關卡定義
+// ═══════════════════════════════════════════════════════════
+const 關卡設定 = [
+  {
+    名稱: '霓虹都市',
+    顏色: '#00ff9f',  // 綠
+    背景: '#030318',
+    蛇頭色: '#00ff9f',
+    蛇身色: '#00d4ff',
+    食物色: '#ffee00',
+    速度: 130, // FIXED: 依需求調整第1關速度
+    過關分數: 200, // FIXED: 第1關需取得200分才進入下一關
+    邊界: '矩形',
+    障礙: [],
+    道具機率: { 無敵: 0, 雙倍: 0, 炸彈: 0 }, // FIXED: 第1關不產生任何道具與炸彈
+  },
+  {
+    名稱: '深淵廢墟',
+    顏色: '#ff006e',
+    背景: '#100308',
+    蛇頭色: '#ff006e',
+    蛇身色: '#bf5fff',
+    食物色: '#ff8c00',
+    速度: 120, // FIXED: 依需求調整第2關速度
+    過關分數: 50, // FIXED: 第2關需取得50分才進入下一關
+    邊界: '菱形', // FIXED: 第2關地圖形狀改為菱形
+    障礙: [
+      {x:8,y:5},{x:9,y:5},{x:10,y:5},
+      {x:18,y:16},{x:19,y:16},{x:20,y:16},
+      {x:5,y:15},{x:5,y:16},{x:5,y:17},
+      {x:22,y:6},{x:22,y:7},{x:22,y:8},
+    ],
+    道具機率: { 無敵: 0.07, 雙倍: 0.1, 炸彈: 0.1 },
+  },
+  {
+    名稱: '星際核心',
+    顏色: '#00d4ff',
+    背景: '#020a18',
+    蛇頭色: '#00d4ff',
+    蛇身色: '#00ff9f',
+    食物色: '#bf5fff',
+    速度: 100, // FIXED: 依需求調整第3關速度
+    過關分數: 70, // FIXED: 第3關達標後進入第4關
+    邊界: '房子', // FIXED: 第3關地圖形狀改為房子形
+    障礙: [
+      {x:5,y:5},{x:6,y:5},{x:7,y:5},{x:5,y:6},{x:5,y:7},
+      {x:20,y:5},{x:21,y:5},{x:22,y:5},{x:22,y:6},{x:22,y:7},
+      {x:5,y:15},{x:5,y:16},{x:5,y:17},{x:6,y:17},{x:7,y:17},
+      {x:20,y:15},{x:21,y:17},{x:22,y:15},{x:22,y:16},{x:22,y:17},
+    ],
+    道具機率: { 無敵: 0.09, 雙倍: 0.12, 炸彈: 0.13 },
+  },
+  {
+    名稱: '移動迷宮',
+    顏色: '#ffee00',
+    背景: '#080818',
+    蛇頭色: '#ffee00',
+    蛇身色: '#ff8c00',
+    食物色: '#00ff9f',
+    速度: 90, // FIXED: 新增第4關速度
+    過關分數: 70, // FIXED: 第4關達標後才顯示恭喜通關
+    邊界: '矩形', // FIXED: 第4關地圖形狀與第1關相同
+    障礙: [],
+    道具機率: { 無敵: 0.09, 雙倍: 0.12, 炸彈: 0.13 },
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+// 初始化
+// ═══════════════════════════════════════════════════════════
+const 欄數 = 28, 列數 = 22, 格子 = 18;
+const 畫布 = document.getElementById('遊戲畫布');
+const ctx = 畫布.getContext('2d');
+畫布.width = 欄數 * 格子;
+畫布.height = 列數 * 格子;
+
+// ═══════════════════════════════════════════════════════════
+// 遊戲狀態
+// ═══════════════════════════════════════════════════════════
+let 蛇, 方向, 下個方向, 食物, 食物清單, 道具清單, 粒子; // FIXED: 支援場上同時存在多個金幣
+let 當前障礙 = []; // FIXED: 每次進入關卡重新產生本局地圖障礙
+let 下次金幣時間 = 0; // FIXED: 每10秒額外新增1個金幣
+const 金幣生成間隔 = 10000; // FIXED: 每10秒額外新增1個金幣
+const 金幣數量上限 = 3; // FIXED: 地圖上最多同時存在3個金幣
+let 分數 = 0, 最高分 = 0, 幀數 = 0;
+let 關卡分數 = 0; // FIXED: 各關獨立計算過關分數，避免用總分誤判換關
+let 玩家代號 = '匿名玩家';
+let 遊戲循環, 暫停中 = false, 存活 = false;
+let 當前關卡索引 = 0;
+// 道具計時（幀）
+let 無敵剩餘 = 0, 雙倍剩餘 = 0;
+const 道具持續幀 = 80; // ~7秒
+
+// ═══════════════════════════════════════════════════════════
+// 音效
+// ═══════════════════════════════════════════════════════════
+let 音頻上下文;
+function 取音頻() {
+  if (!音頻上下文) 音頻上下文 = new (window.AudioContext || window.webkitAudioContext)();
+  return 音頻上下文;
+}
+function 播音(頻率, 波形, 時長, 音量=0.25, 延遲=0) {
+  try {
+    const ac = 取音頻();
+    const osc = ac.createOscillator(), gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type = 波形;
+    osc.frequency.setValueAtTime(頻率, ac.currentTime + 延遲);
+    gain.gain.setValueAtTime(音量, ac.currentTime + 延遲);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 延遲 + 時長);
+    osc.start(ac.currentTime + 延遲);
+    osc.stop(ac.currentTime + 延遲 + 時長 + 0.05);
+  } catch(e){}
+}
+function 吃食音()   { 播音(440,'square',.07,.2); 播音(660,'square',.08,.2,.06); }
+function 死亡音()   { 播音(220,'sawtooth',.15,.3); 播音(160,'sawtooth',.15,.3,.12); 播音(100,'sawtooth',.25,.3,.25); }
+function 移動音()   { 播音(200,'sine',.035,.04); }
+function 暫停音()   { 播音(800,'sine',.1,.18); }
+function 道具音(類型) {
+  if (類型==='無敵') { 播音(880,'square',.1,.25); 播音(1100,'square',.12,.25,.08); }
+  else if (類型==='雙倍') { 播音(550,'triangle',.1,.2); 播音(770,'triangle',.12,.2,.08); }
+  else if (類型==='炸彈') { 播音(300,'sawtooth',.08,.3); 播音(200,'sawtooth',.12,.3,.06); }
+}
+function 關卡音() { 播音(440,'square',.1,.2); 播音(550,'square',.1,.2,.1); 播音(660,'square',.15,.2,.2); 播音(880,'square',.2,.2,.3); }
+
+// ═══════════════════════════════════════════════════════════
+// 粒子
+// ═══════════════════════════════════════════════════════════
+function 生成粒子(x, y, 顏色) {
+  for (let i=0;i<14;i++) {
+    const 角 = (Math.PI*2/14)*i + Math.random()*.5;
+    粒子.push({
+      x:x*格子+格子/2, y:y*格子+格子/2,
+      vx:Math.cos(角)*(2+Math.random()*3.5),
+      vy:Math.sin(角)*(2+Math.random()*3.5),
+      生命:1, 衰減:.05+Math.random()*.04, 顏色
+    });
+  }
+}
+function 更新粒子() {
+  粒子 = 粒子.filter(p=>p.生命>0);
+  粒子.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=.91;p.vy*=.91;p.生命-=p.衰減;});
+}
+function 繪粒子() {
+  粒子.forEach(p=>{
+    ctx.save();ctx.globalAlpha=p.生命;
+    ctx.shadowColor=p.顏色;ctx.shadowBlur=7;
+    ctx.fillStyle=p.顏色;ctx.fillRect(p.x-2,p.y-2,4,4);
+    ctx.restore();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// 關卡邊界判斷
+// ═══════════════════════════════════════════════════════════
+function 在邊界內(x, y) {
+  const k = 當前關卡();
+  if (k.邊界 === '矩形') return x>=0 && x<欄數 && y>=0 && y<列數;
+  if (k.邊界 === '菱形') {
+    const cx = 欄數/2-0.5, cy = 列數/2-0.5;
+    return Math.abs(x-cx)/12 + Math.abs(y-cy)/10 <= 1;
+  }
+  if (k.邊界 === '房子') { // FIXED: 第3關使用房子形可活動區域
+    const 中心X = Math.floor(欄數 / 2);
+    if (y === 2) return x === 中心X; // 屋頂最頂端單格
+    if (y > 2 && y <= 8) {
+      const 半寬 = y - 2;
+      return x >= 中心X - 半寬 && x <= 中心X + 半寬;
+    }
+    if (y >= 9 && y <= 19) return x >= 5 && x <= 23;
+    return false;
+  }
+  return x>=0 && x<欄數 && y>=0 && y<列數;
+}
+
+function 是房子頂端格(x, y) {
+  return 當前關卡().邊界 === '房子' && x === Math.floor(欄數 / 2) && y === 2; // FIXED: 第3關房子形最頂端那一格不生成金幣
+}
+
+function 是菱形角落禁刷格(x, y) {
+  // FIXED: 第2關菱形四個角各保留最尖端3格，不生成金幣
+  if (當前關卡().邊界 !== '菱形') return false;
+  const 有效菱形格 = [];
+  for (let gx=0; gx<欄數; gx++) {
+    for (let gy=0; gy<列數; gy++) {
+      if (在邊界內(gx, gy)) 有效菱形格.push({x:gx, y:gy});
+    }
+  }
+  const 中心X = 欄數 / 2 - 0.5;
+  const 中心Y = 列數 / 2 - 0.5;
+  const 角落格 = [
+    ...有效菱形格.slice().sort((a,b)=>(a.y-b.y) || (Math.abs(a.x-中心X)-Math.abs(b.x-中心X))).slice(0,3),
+    ...有效菱形格.slice().sort((a,b)=>(b.y-a.y) || (Math.abs(a.x-中心X)-Math.abs(b.x-中心X))).slice(0,3),
+    ...有效菱形格.slice().sort((a,b)=>(a.x-b.x) || (Math.abs(a.y-中心Y)-Math.abs(b.y-中心Y))).slice(0,3),
+    ...有效菱形格.slice().sort((a,b)=>(b.x-a.x) || (Math.abs(a.y-中心Y)-Math.abs(b.y-中心Y))).slice(0,3),
+  ];
+  return 角落格.some(g=>g.x===x && g.y===y);
+}
+
+function 在障礙(x, y) {
+  return 當前障礙.some(b=>b.x===x&&b.y===y); // FIXED: 改用本局隨機地圖障礙
+}
+
+function 引爆炸彈(cx, cy) {
+  // FIXED: 無敵狀態踩到炸彈時，以炸彈為中心清除 3x3 範圍內牆壁，蛇不死亡
+  const 原牆數 = 當前障礙.length;
+  當前障礙 = 當前障礙.filter(b => Math.abs(b.x - cx) > 1 || Math.abs(b.y - cy) > 1);
+  const 清除牆數 = 原牆數 - 當前障礙.length;
+  for (let x = cx - 1; x <= cx + 1; x++) {
+    for (let y = cy - 1; y <= cy + 1; y++) {
+      if (在邊界內(x, y)) 生成粒子(x, y, '#ff8c00');
+    }
+  }
+  播音(140,'sawtooth',.12,.3);
+  播音(90,'sawtooth',.18,.25,.08);
+  return 清除牆數;
+}
+
+function 建立第四關移動牆() {
+  // FIXED: 第4關使用第1關矩形地圖，並生成2個各占1格、上下移動的牆
+  const 結果 = [];
+  const 已佔用 = new Set();
+  const 安全區 = (x,y)=>Math.abs(x-Math.floor(欄數/2))<=4 && Math.abs(y-Math.floor(列數/2))<=3;
+  let 嘗試 = 0;
+  while (結果.length < 2 && 嘗試 < 500) {
+    嘗試++;
+    const x = 4 + Math.floor(Math.random() * (欄數 - 8));
+    const y = 3 + Math.floor(Math.random() * (列數 - 6));
+    if (!在邊界內(x,y) || 安全區(x,y) || 已佔用.has(`${x},${y}`) || 蛇.some(s=>s.x===x&&s.y===y)) continue;
+    已佔用.add(`${x},${y}`);
+    結果.push({x, y, 移動牆:true, dy: Math.random() < 0.5 ? 1 : -1});
+  }
+  當前障礙 = 結果;
+}
+
+function 移動第四關牆() {
+  // FIXED: 第4關牆壁每隔數幀上下移動，碰到上下邊界時反向
+  if (當前關卡索引 !== 3 || 幀數 % 6 !== 0) return;
+  當前障礙.forEach(b=>{
+    if (!b.移動牆) return;
+    let 下一Y = b.y + b.dy;
+    if (!在邊界內(b.x, 下一Y)) {
+      b.dy *= -1;
+      下一Y = b.y + b.dy;
+    }
+    if (在邊界內(b.x, 下一Y)) b.y = 下一Y;
+  });
+}
+
+function 生成本關地圖() {
+  const 結果 = []; // FIXED: 每次進關重新生成本局牆壁
+  if (當前關卡索引 === 0) {
+    當前障礙 = 結果; // FIXED: 第1關維持無牆
+    return;
+  }
+  if (當前關卡索引 === 3) {
+    建立第四關移動牆(); // FIXED: 第4關2個單格移動牆
+    return;
+  }
+
+  const 已佔用 = new Set();
+  const 牆段數 = 當前關卡索引 === 1 ? 1 : 2; // FIXED: 第2關1個牆，第3關2個牆
+  const 每段長度 = 2; // FIXED: 第2、3關每個牆固定占兩格
+  const 安全區 = (x,y)=>Math.abs(x-Math.floor(欄數/2))<=4 && Math.abs(y-Math.floor(列數/2))<=3;
+  const 可放置 = (x,y)=>
+    在邊界內(x,y) &&
+    !安全區(x,y) &&
+    !已佔用.has(`${x},${y}`) &&
+    !蛇.some(s=>s.x===x&&s.y===y);
+
+  let 已建立牆段 = 0;
+  let 嘗試 = 0;
+  while (已建立牆段 < 牆段數 && 嘗試 < 800) {
+    嘗試++;
+    const 方向清單 = Math.random() < 0.5 ? [[1,0],[-1,0]] : [[0,1],[0,-1]];
+    const [dx,dy] = 方向清單[Math.floor(Math.random()*方向清單.length)];
+    const 起點 = { x: Math.floor(Math.random()*欄數), y: Math.floor(Math.random()*列數) };
+    const 線段 = [];
+
+    for (let i=0;i<每段長度;i++) {
+      const x = 起點.x + dx*i;
+      const y = 起點.y + dy*i;
+      if (!可放置(x,y)) { 線段.length = 0; break; }
+      線段.push({x,y});
+    }
+
+    if (線段.length !== 每段長度) continue;
+
+    線段.forEach(b=>{
+      已佔用.add(`${b.x},${b.y}`);
+      結果.push(b);
+    });
+    已建立牆段++;
+  }
+  當前障礙 = 結果; // FIXED: 套用第2關2格牆、第3關2格牆的本局隨機地圖
+}
+function 當前關卡() { return 關卡設定[當前關卡索引]; }
+
+// ═══════════════════════════════════════════════════════════
+// 放置食物/道具
+// ═══════════════════════════════════════════════════════════
+function 有效格子清單() {
+  const 清單=[];
+  for(let x=0;x<欄數;x++) for(let y=0;y<列數;y++) {
+    if (在邊界內(x,y) && !是房子頂端格(x,y) && !是菱形角落禁刷格(x,y) && !在障礙(x,y) && !蛇.some(s=>s.x===x&&s.y===y))
+      清單.push({x,y}); // FIXED: 金幣不會生成在第3關房子最頂端格，以及第2關菱形四角最尖端3格
+  }
+  return 清單;
+}
+function 隨機空格() {
+  const 清單 = 有效格子清單().filter(g=>
+    !食物清單.some(f=>f.x===g.x&&f.y===g.y) && // FIXED: 避免多個金幣重疊
+    !道具清單.some(d=>d.x===g.x&&d.y===g.y)
+  );
+  return 清單.length ? 清單[Math.floor(Math.random()*清單.length)] : null;
+}
+function 放食物() {
+  if (食物清單.length >= 金幣數量上限) return; // FIXED: 地圖上最多只能同時存在3個金幣
+  const g = 隨機空格();
+  if (g) 食物清單.push(g); // FIXED: 未達上限時才新增金幣
+}
+function 嘗試放道具() {
+  const k = 當前關卡();
+  if (當前關卡索引 === 0) return; // FIXED: 第1關禁止產生任何道具與炸彈
+  // 限制最多3個道具同時存在
+  if (道具清單.length >= 3) return;
+  const r = Math.random();
+  let 類型 = null;
+  if (r < k.道具機率.炸彈) 類型='炸彈';
+  else if (r < k.道具機率.炸彈+k.道具機率.無敵) 類型='無敵';
+  else if (r < k.道具機率.炸彈+k.道具機率.無敵+k.道具機率.雙倍) 類型='雙倍';
+  if (!類型) return;
+  const g = 隨機空格();
+  if (g) 道具清單.push({...g, 類型, 計時:300});
+}
+
+// ═══════════════════════════════════════════════════════════
+// 開始遊戲 / 進入關卡
+// ═══════════════════════════════════════════════════════════
+function 取得玩家名稱(優先來源='開始') {
+  const 開始輸入 = document.getElementById('開始玩家名字');
+  const 死亡輸入 = document.getElementById('玩家名字');
+  const 來源值 = 優先來源 === '死亡'
+    ? (死亡輸入?.value || 開始輸入?.value || 玩家代號)
+    : (開始輸入?.value || 死亡輸入?.value || 玩家代號);
+  玩家代號 = String(來源值 || '').trim().slice(0, 12) || '匿名玩家';
+  if (開始輸入) 開始輸入.value = 玩家代號;
+  if (死亡輸入) 死亡輸入.value = 玩家代號;
+  return 玩家代號;
+}
+
+function 開始遊戲() {
+  取得玩家名稱();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); // FIXED: 開始遊戲後解除名稱輸入框焦點，讓 w/s/a/d 恢復控制蛇
+  當前關卡索引 = 0;
+  分數 = 0;
+  關卡分數 = 0; // FIXED: 新遊戲重置本關分數
+  進入關卡(false);
+}
+
+function 進入關卡(過渡動畫=true) {
+  const k = 當前關卡();
+  document.getElementById('開始畫面').style.display='none';
+  document.getElementById('死亡畫面').style.display='none';
+  clearInterval(遊戲循環);
+  const cx=Math.floor(欄數/2), cy=Math.floor(列數/2);
+  蛇=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+  方向={x:1,y:0}; 下個方向={x:1,y:0};
+  食物=null; 食物清單=[]; 道具清單=[]; 粒子=[]; // FIXED: 每關重置多金幣清單
+  暫停中=false; 存活=false;
+  無敵剩餘=0; 雙倍剩餘=0;
+  關卡分數 = 0; // FIXED: 每次進入新關卡後，本關過關分數重新計算
+  生成本關地圖(); // FIXED: 每次進入任一關都重新產生不同地圖
+  放食物(); // FIXED: 一進到遊戲或新關卡就立即刷出第1個金幣
+  下次金幣時間 = Date.now() + 金幣生成間隔; // FIXED: 初始金幣已生成，之後每10秒額外新增金幣
+  更新HUD();
+  更新關卡橫幅();
+  document.getElementById('暫停鈕').textContent='【 暫停 】';
+
+  if (過渡動畫) {
+    const 過渡 = document.getElementById('關卡過渡');
+    document.getElementById('過渡標題').textContent=`進入第 ${當前關卡索引+1} 關`;
+    document.getElementById('過渡副標').textContent=k.名稱;
+    過渡.style.color=k.顏色;
+    document.getElementById('過渡標題').style.color=k.顏色;
+    過渡.classList.add('顯示');
+    setTimeout(()=>{ 過渡.classList.remove('顯示'); 存活=true; 遊戲循環=setInterval(遊戲幀,k.速度); },1800);
+  } else {
+    存活=true;
+    遊戲循環=setInterval(遊戲幀,k.速度);
+  }
+}
+
+function 更新關卡橫幅() {
+  const k = 當前關卡();
+  const 橫 = document.getElementById('關卡橫幅');
+  橫.textContent=`第 ${當前關卡索引+1} 關 ── ${k.名稱}`;
+  橫.style.color=k.顏色;
+  橫.style.borderColor=k.顏色;
+  橫.style.boxShadow=`0 0 8px ${k.顏色}55`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 遊戲主循環
+// ═══════════════════════════════════════════════════════════
+function 遊戲幀() {
+  if (暫停中) return;
+  幀數++;
+  移動第四關牆(); // FIXED: 第4關牆壁會上下移動
+  if (當前關卡索引 === 3 && 蛇.some(s=>在障礙(s.x,s.y))) {
+    存活=false; clearInterval(遊戲循環);
+    死亡音(); 生成粒子(蛇[0].x, 蛇[0].y, 當前關卡().粉||'#ff006e');
+    setTimeout(顯示死亡畫面, 600);
+    繪圖(); return;
+  }
+  if (Date.now() >= 下次金幣時間) {
+    放食物(); // FIXED: 不管場上是否已有金幣，每10秒額外新增1個
+    下次金幣時間 = Date.now() + 金幣生成間隔; // FIXED: 吃不吃都照固定節奏繼續刷
+  }
+  方向={...下個方向};
+  const 新頭={x:蛇[0].x+方向.x, y:蛇[0].y+方向.y};
+
+  // 死亡判定
+  const 無敵中 = 無敵剩餘 > 0;
+  const 撞牆 = !在邊界內(新頭.x, 新頭.y);
+  const 撞障礙 = 在障礙(新頭.x, 新頭.y);
+  const 撞自己 = !無敵中 && 蛇.some(s=>s.x===新頭.x&&s.y===新頭.y);
+
+  if (撞牆||撞障礙||撞自己) {
+    存活=false; clearInterval(遊戲循環);
+    死亡音(); 生成粒子(蛇[0].x, 蛇[0].y, 當前關卡().粉||'#ff006e');
+    setTimeout(顯示死亡畫面, 600);
+    繪圖(); return;
+  }
+
+  蛇.unshift(新頭);
+
+  // 吃食物
+  let 吃了 = false;
+  const 吃到金幣索引 = 食物清單.findIndex(f=>新頭.x===f.x&&新頭.y===f.y); // FIXED: 支援場上多個金幣
+  if (吃到金幣索引 >= 0) {
+    const 吃到金幣 = 食物清單.splice(吃到金幣索引, 1)[0]; // FIXED: 只移除被吃到的那一個金幣
+    const 加分 = 雙倍剩餘>0 ? 20 : 10;
+    分數+=加分;
+    關卡分數+=加分; // FIXED: 使用本關分數判斷是否達到該關門檻
+    if (分數>最高分) 最高分=分數;
+    吃食音();
+    生成粒子(吃到金幣.x,吃到金幣.y,當前關卡().食物色);
+    更新HUD();
+    吃了=true;
+    // 每20幀嘗試放道具
+    嘗試放道具();
+    // FIXED: 各關使用不同過關分數：第1關200、第2關50、第3關70、第4關70
+    if (關卡分數 >= 當前關卡().過關分數 && 當前關卡索引<關卡設定.length-1) {
+      clearInterval(遊戲循環);
+      關卡音();
+      當前關卡索引++;
+      setTimeout(()=>進入關卡(true),400);
+      return;
+    }
+    if (關卡分數 >= 當前關卡().過關分數 && 當前關卡索引===關卡設定.length-1) {
+      存活=false; clearInterval(遊戲循環);
+      關卡音();
+      setTimeout(()=>顯示死亡畫面('恭喜通關'),600); // FIXED: 通過第4關後才顯示恭喜通關
+      繪圖(); return;
+    }
+  }
+  if (吃了) {
+    放食物(); // FIXED: 每吃掉一個金幣，立即補出下一個金幣
+  } else {
+    蛇.pop();
+  }
+
+  // 踩到道具
+  const 踩到索引 = 道具清單.findIndex(d=>d.x===新頭.x&&d.y===新頭.y);
+  if (踩到索引>=0) {
+    const 道具 = 道具清單.splice(踩到索引,1)[0];
+    道具音(道具.類型);
+    生成粒子(道具.x,道具.y,道具.類型==='炸彈'?'#ff8c00':道具.類型==='無敵'?'#bf5fff':'#ffee00');
+    if (道具.類型==='無敵') 無敵剩餘=道具持續幀;
+    else if (道具.類型==='雙倍') 雙倍剩餘=道具持續幀;
+    else if (道具.類型==='炸彈') {
+      if (無敵中) {
+        引爆炸彈(道具.x, 道具.y); // FIXED: 無敵時炸彈會爆炸並清除周圍 3x3 牆壁，但蛇不死亡
+      } else {
+        // 炸彈即死
+        存活=false; clearInterval(遊戲循環);
+        死亡音();
+        setTimeout(顯示死亡畫面,600);
+        繪圖(); return;
+      }
+    }
+  }
+
+  // 倒數道具計時
+  if (無敵剩餘>0) 無敵剩餘--;
+  if (雙倍剩餘>0) 雙倍剩餘--;
+
+  // 道具自然消失計時
+  道具清單 = 道具清單.filter(d=>{d.計時--;return d.計時>0;});
+
+  // 每40幀嘗試刷新道具
+  if (幀數%40===0) 嘗試放道具();
+
+  if (幀數%3===0) 移動音();
+
+  更新道具條();
+  繪圖();
+}
+
+function 顯示死亡畫面(標題文字='遊戲結束') {
+  document.querySelector('#死亡畫面 h2').textContent = 標題文字; // FIXED: 支援第4關通關提示
+  document.getElementById('最終分數').textContent=String(分數).padStart(3,'0');
+  document.getElementById('死亡關卡').textContent=`關卡：第${當前關卡索引+1}關 ${當前關卡().名稱}`;
+  document.getElementById('死亡畫面').style.display='flex';
+  document.getElementById('玩家名字').value=玩家代號;
+  加入本機排行榜(玩家代號, 分數, 當前關卡索引+1); // FIXED: 死亡時直接顯示到右側排行榜，不再需要上傳 API
+  const 訊息 = document.getElementById('上傳訊息');
+  const 上傳鈕 = document.getElementById('上傳分數鈕');
+  if (訊息) { 訊息.textContent='本次成績已顯示在右側排行榜。'; 訊息.classList.remove('錯誤'); } // FIXED: 改為自動記錄提示
+  if (上傳鈕) { 上傳鈕.disabled=true; 上傳鈕.textContent='【 已記錄到排行榜 】'; 上傳鈕.style.display='none'; } // FIXED: 不再提供上傳按鈕
+  document.getElementById('玩家名字').focus();
+  document.getElementById('玩家名字').select();
+}
+
+function 更新HUD() {
+  document.getElementById('分數顯示').textContent=分數;
+  document.getElementById('最高分顯示').textContent=最高分;
+}
+
+function 更新道具條() {
+  document.getElementById('無敵條').style.width=(無敵剩餘/道具持續幀*100)+'%';
+  document.getElementById('雙倍條').style.width=(雙倍剩餘/道具持續幀*100)+'%';
+  document.getElementById('炸彈數').textContent=道具清單.filter(d=>d.類型==='炸彈').length;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 繪圖
+// ═══════════════════════════════════════════════════════════
+function 繪圖() {
+  const k = 當前關卡();
+  ctx.fillStyle=k.背景;
+  ctx.fillRect(0,0,畫布.width,畫布.height);
+
+  // 畫格線
+  ctx.strokeStyle='rgba(0,212,255,0.04)';ctx.lineWidth=.5;
+  for(let x=0;x<=欄數;x++){ctx.beginPath();ctx.moveTo(x*格子,0);ctx.lineTo(x*格子,畫布.height);ctx.stroke();}
+  for(let y=0;y<=列數;y++){ctx.beginPath();ctx.moveTo(0,y*格子);ctx.lineTo(畫布.width,y*格子);ctx.stroke();}
+
+  // 畫有效區域遮罩（非矩形關卡）
+  if (k.邊界!=='矩形') {
+    ctx.save();
+    ctx.fillStyle='rgba(3,3,24,0.6)';
+    for(let x=0;x<欄數;x++) for(let y=0;y<列數;y++) {
+      if (!在邊界內(x,y)) ctx.fillRect(x*格子,y*格子,格子,格子);
+    }
+    // 邊界線
+    ctx.strokeStyle=k.顏色+'66';ctx.lineWidth=1;
+    for(let x=0;x<欄數;x++) for(let y=0;y<列數;y++) {
+      if (!在邊界內(x,y)) continue;
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+        if (!在邊界內(x+dx,y+dy)){
+          ctx.beginPath();
+          const bx=x*格子+(dx>0?格子:0), by=y*格子+(dy>0?格子:0);
+          if(dx!==0){ctx.moveTo(bx,y*格子);ctx.lineTo(bx,(y+1)*格子);}
+          else{ctx.moveTo(x*格子,by);ctx.lineTo((x+1)*格子,by);}
+          ctx.stroke();
+        }
+      });
+    }
+    ctx.restore();
+  }
+
+  // 畫障礙
+  當前障礙.forEach(b=>{ // FIXED: 繪製本局隨機地圖障礙
+    ctx.save();
+    ctx.fillStyle='#1a0a00';
+    ctx.fillRect(b.x*格子,b.y*格子,格子,格子);
+    ctx.strokeStyle=k.顏色+'88';ctx.lineWidth=1;
+    ctx.strokeRect(b.x*格子+1,b.y*格子+1,格子-2,格子-2);
+    ctx.shadowColor=k.顏色;ctx.shadowBlur=6;
+    ctx.strokeRect(b.x*格子+1,b.y*格子+1,格子-2,格子-2);
+    ctx.restore();
+  });
+
+  // 食物（脈動）
+  食物清單.forEach(食物=>{ // FIXED: 繪製場上所有金幣
+    const p=.6+.4*Math.sin(Date.now()/180);
+    ctx.save();
+    ctx.shadowColor=k.食物色;ctx.shadowBlur=20*p;
+    ctx.fillStyle=k.食物色;
+    const fx=食物.x*格子+格子/2, fy=食物.y*格子+格子/2;
+    ctx.beginPath();ctx.arc(fx,fy,格子/2*.72*p,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(fx-格子*.1,fy-格子*.1,格子*.1,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  });
+
+  // 道具
+  道具清單.forEach(d=>{
+    const px=d.x*格子+格子/2, py=d.y*格子+格子/2;
+    const p=.5+.5*Math.sin(Date.now()/150+(d.x+d.y));
+    const 顏色=d.類型==='炸彈'?'#ff8c00':d.類型==='無敵'?'#bf5fff':'#ffee00';
+    const 符號=d.類型==='炸彈'?'✸':d.類型==='無敵'?'★':'✦';
+    ctx.save();
+    ctx.shadowColor=顏色;ctx.shadowBlur=16*p;
+    ctx.fillStyle=顏色+'33';
+    ctx.fillRect(d.x*格子+2,d.y*格子+2,格子-4,格子-4);
+    ctx.strokeStyle=顏色;ctx.lineWidth=1;
+    ctx.strokeRect(d.x*格子+2,d.y*格子+2,格子-4,格子-4);
+    ctx.fillStyle=顏色;
+    ctx.font=`${格子*.65}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(符號,px,py);
+    // 即將消失閃爍
+    if(d.計時<60 && Math.floor(Date.now()/200)%2===0) { ctx.globalAlpha=.4; ctx.fillRect(d.x*格子,d.y*格子,格子,格子); }
+    ctx.restore();
+  });
+
+  // 蛇
+  const 無敵發光 = 無敵剩餘>0;
+  蛇.forEach((格,i)=>{
+    const 是頭=i===0;
+    const t=i/蛇.length;
+    const x=格.x*格子, y=格.y*格子;
+    const pad=是頭?1:2;
+    ctx.save();
+    if (是頭) {
+      ctx.shadowColor=無敵發光?'#bf5fff':k.蛇頭色;
+      ctx.shadowBlur=無敵發光?28:20;
+      ctx.fillStyle=無敵發光?'#bf5fff':k.蛇頭色;
+    } else {
+      ctx.shadowColor=k.蛇身色;ctx.shadowBlur=10;
+      const a=.9-t*.5;
+      ctx.fillStyle=k.蛇身色+Math.round(a*255).toString(16).padStart(2,'0');
+    }
+    ctx.fillRect(x+pad,y+pad,格子-pad*2,格子-pad*2);
+    // 蛇眼
+    if (是頭) {
+      ctx.shadowBlur=0;ctx.fillStyle='#000';
+      const ex1=方向.x===0?x+格子*.28:x+格子*.5+方向.x*格子*.15;
+      const ey1=方向.y===0?y+格子*.28:y+格子*.5+方向.y*格子*.15;
+      const ex2=方向.x===0?x+格子*.72:ex1;
+      const ey2=方向.y===0?y+格子*.72:ey1;
+      ctx.beginPath();ctx.arc(ex1,ey1,2.2,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(ex2,ey2,2.2,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ff006e';ctx.shadowColor='#ff006e';ctx.shadowBlur=6;
+      ctx.beginPath();ctx.arc(ex1,ey1,1,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(ex2,ey2,1,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  // 粒子
+  更新粒子();繪粒子();
+
+  // 暫停文字
+  if (暫停中) {
+    ctx.save();
+    ctx.fillStyle='rgba(3,3,24,.72)';ctx.fillRect(0,0,畫布.width,畫布.height);
+    ctx.font="bold 18px 'Orbitron',sans-serif";
+    ctx.fillStyle='#00d4ff';ctx.shadowColor='#00d4ff';ctx.shadowBlur=16;
+    ctx.textAlign='center';ctx.fillText('// 已暫停 //',畫布.width/2,畫布.height/2);
+    ctx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 操控
+// ═══════════════════════════════════════════════════════════
+function 設方向(dx,dy){
+  if(!存活||暫停中) return;
+  if(dx!==0&&方向.x!==0) return;
+  if(dy!==0&&方向.y!==0) return;
+  下個方向={x:dx,y:dy};
+}
+function 觸控設方向(event, dx, dy){
+  if (event) event.preventDefault(); // FIXED: 手機方向鍵控制蛇時，不觸發頁面滾動或點擊延遲
+  設方向(dx,dy); // FIXED: 手機觸控與電腦鍵盤共用同一套方向限制
+}
+let 觸控起點 = null; // FIXED: 手機滑動操作用，與電腦版鍵盤操作並存
+畫布.addEventListener('pointerdown', event=>{
+  if (event.pointerType === 'mouse') return;
+  觸控起點 = { x:event.clientX, y:event.clientY };
+});
+畫布.addEventListener('pointermove', event=>{
+  if (!觸控起點 || event.pointerType === 'mouse') return;
+  event.preventDefault();
+  const dx = event.clientX - 觸控起點.x;
+  const dy = event.clientY - 觸控起點.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+  if (Math.abs(dx) > Math.abs(dy)) 觸控設方向(event, dx > 0 ? 1 : -1, 0);
+  else 觸控設方向(event, 0, dy > 0 ? 1 : -1);
+  觸控起點 = { x:event.clientX, y:event.clientY };
+}, { passive:false });
+畫布.addEventListener('pointerup', ()=>{ 觸控起點 = null; });
+畫布.addEventListener('pointercancel', ()=>{ 觸控起點 = null; });
+function 切換暫停(){
+  if(!存活) return;
+  暫停中=!暫停中;
+  document.getElementById('暫停鈕').textContent=暫停中?'【 繼續 】':'【 暫停 】';
+  暫停音();
+}
+document.addEventListener('keydown',e=>{
+  const 輸入中 = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable); // FIXED: 輸入名字時允許 w/s/a/d 正常打字，不攔截成遊戲方向鍵
+  if (輸入中) return; // FIXED: 名稱輸入框聚焦時不觸發蛇的控制鍵
+  switch(e.key){
+    case'ArrowUp':case'w':case'W':e.preventDefault();設方向(0,-1);break;
+    case'ArrowDown':case's':case'S':e.preventDefault();設方向(0,1);break;
+    case'ArrowLeft':case'a':case'A':e.preventDefault();設方向(-1,0);break;
+    case'ArrowRight':case'd':case'D':e.preventDefault();設方向(1,0);break;
+    case' ':e.preventDefault();切換暫停();break;
+    case'r':case'R':開始遊戲();break;
+  }
+});
+document.getElementById('開始玩家名字').addEventListener('keydown',e=>{
+  if(e.key==='Enter') 開始遊戲();
+});
+document.getElementById('玩家名字').addEventListener('keydown',e=>{
+  if(e.key==='Enter') 提交分數();
+});
+
+// ═══════════════════════════════════════════════════════════
+// 排行榜
+// ═══════════════════════════════════════════════════════════
+const 排行榜儲存鍵 = 'neon-snake-local-leaderboard-v1'; // FIXED: 改用本機排行榜，避免 API 讀取失敗
+let 最近成績ID = null; // FIXED: 記錄本次死亡成績，用於顯示自己的排名
+
+function 跳脫HTML(值) {
+  return String(值 ?? '').replace(/[&<>'"]/g, 字元 => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[字元]));
+}
+
+function 讀取本機排行榜() {
+  try {
+    const data = JSON.parse(localStorage.getItem(排行榜儲存鍵) || '[]');
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error('本機排行榜讀取失敗', err);
+    return [];
+  }
+}
+
+function 儲存本機排行榜(data) {
+  localStorage.setItem(排行榜儲存鍵, JSON.stringify(data.slice(0, 100))); // FIXED: 保留完整排名資料，畫面只顯示前5名
+}
+
+function 渲染我的排名(data) {
+  const box=document.getElementById('我的排名');
+  if(!box) return;
+  const index=Array.isArray(data) ? data.findIndex(e=>e.id===最近成績ID) : -1;
+  if(index<0){
+    box.innerHTML='<div class="標籤">// 我的成績</div><div class="內容"><span class="名次">—</span><span class="名字">尚無成績</span><span class="分">—</span></div>';
+    return;
+  }
+  const me=data[index];
+  box.innerHTML=`
+    <div class="標籤">// 我的成績</div>
+    <div class="內容">
+      <span class="名次">#${index+1}</span>
+      <span class="名字">${跳脫HTML(me.name)}</span>
+      <span class="分">${Number(me.score)||0}</span>
+    </div>`;
+}
+
+function 渲染排行榜(data) {
+  const ul=document.getElementById('排行榜列表');
+  if(!ul) return;
+  if(!Array.isArray(data) || !data.length){
+    ul.innerHTML='<li><span class="名次">#1</span><span class="名字">—</span><span class="分">—</span></li>';
+    渲染我的排名(data); // FIXED: 同步更新自己的成績區塊
+    return;
+  }
+  ul.innerHTML=data.slice(0,5).map((e,i)=>`
+    <li>
+      <span class="名次">#${i+1}</span>
+      <span class="名字">${跳脫HTML(e.name)}</span>
+      <span class="分">${Number(e.score)||0}</span>
+    </li>`).join(''); // FIXED: 排行榜只顯示前5名與分數，不顯示關卡
+  渲染我的排名(data); // FIXED: 另外固定顯示自己的排名、名字、分數
+}
+
+function 載入排行榜() {
+  渲染排行榜(讀取本機排行榜()); // FIXED: 不再呼叫 /api/leaderboard，避免旁邊排行榜顯示讀取失敗
+  return true;
+}
+
+function 加入本機排行榜(名字, score, stage) {
+  const current = 讀取本機排行榜();
+  最近成績ID = `me-${Date.now()}-${Math.random().toString(16).slice(2)}`; // FIXED: 標記本次成績，避免同分時找錯玩家
+  current.push({
+    id: 最近成績ID, // FIXED: 用於計算並顯示自己的排名
+    name: String(名字 || '匿名玩家').trim().slice(0, 12) || '匿名玩家',
+    score: Number(score) || 0,
+    stage: Number(stage) || 1
+  });
+  current.sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0));
+  儲存本機排行榜(current);
+  渲染排行榜(current);
+}
+
+function 提交分數() {
+  const 訊息=document.getElementById('上傳訊息');
+  if (訊息) {
+    訊息.textContent='本次成績已自動顯示在右側排行榜。'; // FIXED: 保留函式相容舊 onclick，但不再上傳分數
+    訊息.classList.remove('錯誤');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// 初始畫面
+// ═══════════════════════════════════════════════════════════
+載入排行榜();
+ctx.fillStyle='#030318';ctx.fillRect(0,0,畫布.width,畫布.height);
+</script>
+</body>
+</html>

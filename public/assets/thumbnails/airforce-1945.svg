@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs><radialGradient id="r" cx="50%" cy="35%" r="70%"><stop stop-color="#1e3a8a"/><stop offset="1" stop-color="#020617"/></radialGradient><filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  <rect width="800" height="450" fill="url(#r)"/>
+  <g fill="#fff" opacity=".75"><circle cx="100" cy="70" r="2"/><circle cx="210" cy="130" r="1.5"/><circle cx="680" cy="85" r="2"/><circle cx="590" cy="180" r="1.8"/><circle cx="440" cy="60" r="1.2"/></g>
+  <g filter="url(#glow)">
+    <path d="M400 145 L348 305 L400 270 L452 305 Z" fill="#88ccff"/>
+    <path d="M340 255 L250 335 L375 325 Z" fill="#5599cc"/>
+    <path d="M460 255 L550 335 L425 325 Z" fill="#5599cc"/>
+    <path d="M395 300 L405 300 L410 370 L390 370 Z" fill="#00e5ff" opacity=".8"/>
+    <circle cx="265" cy="145" r="28" fill="#ff4444"/><circle cx="535" cy="140" r="34" fill="#ff8800"/>
+  </g>
+  <text x="400" y="88" text-anchor="middle" fill="#fef3c7" font-family="Arial, sans-serif" font-size="54" font-weight="900">AIR FORCE 1945</text>
+  <text x="400" y="405" text-anchor="middle" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="26">Shooter</text>
+</svg>

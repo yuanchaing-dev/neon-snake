@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">
+  <defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#07051f"/><stop offset="1" stop-color="#111827"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  <rect width="800" height="450" fill="url(#g)"/>
+  <g stroke="#1f6feb" stroke-width="1" opacity=".35"><path d="M0 75h800M0 150h800M0 225h800M0 300h800M0 375h800M80 0v450M160 0v450M240 0v450M320 0v450M400 0v450M480 0v450M560 0v450M640 0v450M720 0v450"/></g>
+  <g filter="url(#glow)">
+    <rect x="160" y="210" width="70" height="70" rx="18" fill="#39ff14"/>
+    <rect x="235" y="210" width="70" height="70" rx="18" fill="#39ff14"/>
+    <rect x="310" y="210" width="70" height="70" rx="18" fill="#39ff14"/>
+    <rect x="385" y="210" width="70" height="70" rx="18" fill="#39ff14"/>
+    <circle cx="590" cy="245" r="32" fill="#ffd700"/>
+  </g>
+  <text x="400" y="105" text-anchor="middle" fill="#f8fafc" font-family="Arial, sans-serif" font-size="54" font-weight="800">NEON SNAKE</text>
+  <text x="400" y="355" text-anchor="middle" fill="#94a3b8" font-family="Arial, sans-serif" font-size="26">HTML5 Arcade</text>
+</svg>
