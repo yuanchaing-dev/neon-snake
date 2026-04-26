@@ -1,8 +1,9 @@
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"> <!-- FIXED: 手機版使用實際裝置寬度，避免瀏覽器用預設 980px 導致畫面被縮小 -->
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;} /* FIXED: 讓頁面本身吃滿電腦螢幕，避免外層留白或捲軸 */
-#aw{position:relative;width:100vw;height:100vh;border-radius:0;overflow:hidden;font-family:'Courier New',monospace;background:#000;} /* FIXED: 遊戲容器改為佔滿整個瀏覽器視窗 */
+html,body{width:100%;height:100%;overflow:hidden;background:#000;touch-action:none;} /* FIXED: 手機版禁止頁面縮放/捲動，避免遊戲畫面被瀏覽器壓小 */
+#aw{position:relative;width:100vw;width:100dvw;height:100vh;height:100dvh;border-radius:0;overflow:hidden;font-family:'Courier New',monospace;background:#000;} /* FIXED: 手機版改用 dvh/dvw 吃滿實際可視螢幕，避免網址列造成畫面縮小 */
 #ac{display:block;width:100%;height:100%;}
 #hud{position:absolute;top:10px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:center;pointer-events:none;opacity:0;}
 .hs{color:#fff;font-size:12px;font-weight:700;letter-spacing:1px;text-shadow:0 0 6px #000;}
@@ -27,7 +28,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;} /* FIXED: 讓
 #googleLoginBtn.signed{background:rgba(100,255,170,0.92);border-color:rgba(100,255,170,0.7);} /* FIXED: 已登入時顯示不同狀態 */
 
 #mobileControls{position:absolute;inset:0;display:none;pointer-events:none;z-index:4;} /* FIXED: 手機版虛擬移動鍵容器，避免影響電腦操作 */
-.mobile-stick{position:absolute;bottom:24px;width:112px;height:112px;border-radius:50%;background:rgba(80,130,255,0.18);border:2px solid rgba(120,180,255,0.45);box-shadow:0 0 18px rgba(0,0,0,0.45);pointer-events:auto;touch-action:none;user-select:none;} /* FIXED: 手機移動鍵外圈 */
+.mobile-stick{display:none;position:absolute;bottom:24px;width:112px;height:112px;border-radius:50%;background:rgba(80,130,255,0.18);border:2px solid rgba(120,180,255,0.45);box-shadow:0 0 18px rgba(0,0,0,0.45);pointer-events:auto;touch-action:none;user-select:none;} /* FIXED: 手機移動鍵外圈 */
 .mobile-stick::after{content:attr(data-label);position:absolute;left:0;right:0;bottom:-20px;text-align:center;color:rgba(255,255,255,0.72);font:700 11px 'Courier New',monospace;text-shadow:0 0 5px #000;} /* FIXED: 顯示 P1 / P2 標籤 */
 .mobile-knob{position:absolute;left:50%;top:50%;width:48px;height:48px;border-radius:50%;transform:translate(-50%,-50%);background:rgba(120,200,255,0.42);border:2px solid rgba(210,240,255,0.75);box-shadow:inset 0 0 10px rgba(255,255,255,0.25),0 0 14px rgba(0,0,0,0.35);} /* FIXED: 手機移動鍵搖桿 */
 #stickLeft{left:24px;} /* FIXED: 手機移動鍵改到左下；單人控制 P1，雙人控制 P1 */
@@ -35,9 +36,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;} /* FIXED: 讓
 #mobileBombBtn:active,#mobileBombBtn.pressed{background:rgba(255,120,30,0.58);transform:scale(0.94);} /* FIXED: 手機炸彈鍵按下回饋 */
 #stickRight{right:24px;bottom:96px;} /* FIXED: 雙人模式 P2 右側移動鍵上移，避免與右下炸彈鍵重疊 */
 @media (pointer:coarse),(max-width:768px){
+  html,body{position:fixed;inset:0;} /* FIXED: 手機版固定頁面，避免瀏覽器捲動吃掉可視高度 */
+  #aw{width:100dvw;height:100dvh;min-height:100svh;} /* FIXED: 手機版強制吃滿整個可視螢幕 */
+  #googleLoginPanel{top:8px;right:8px;transform:scale(1.06);transform-origin:top right;} /* FIXED: 手機標題頁 Google 鍵維持可點擊但不壓縮主畫面 */
   #mobileControls.playing{display:block;} /* FIXED: 手機版只在遊戲中顯示移動鍵 */
   #mobileControls.single #stickLeft{display:block;} /* FIXED: 單人模式移動鍵改到左下 */
-  #mobileControls.coop #stickLeft{display:block;} /* FIXED: 雙人模式維持左、右各一個移動鍵 */
+  #mobileControls.coop #stickLeft{display:block;} /* FIXED: 雙人模式 P1 左下移動鍵 */
+  #mobileControls.coop #stickRight{display:block;} /* FIXED: 雙人模式才顯示 P2 右側移動鍵 */
 }
 
 </style>
@@ -104,9 +109,10 @@ const googleLoginBtn=document.getElementById('googleLoginBtn'); // FIXED: 標題
 const googleButtonHost=document.getElementById('googleButtonHost'); // FIXED: 真正 Google Identity Services 按鈕掛載點
 
 let W,H;
-function resize(){W=window.innerWidth;H=window.innerHeight;aw.style.width=W+'px';aw.style.height=H+'px';ac.width=W;ac.height=H;} // FIXED: Canvas 高度改跟隨視窗高度，不再固定 540px
+function resize(){const vv=window.visualViewport;W=Math.floor(vv?vv.width:window.innerWidth);H=Math.floor(vv?vv.height:window.innerHeight);aw.style.width=W+'px';aw.style.height=H+'px';ac.width=W;ac.height=H;} // FIXED: 手機版改讀 visualViewport，避免瀏覽器網址列讓畫面被算小
 resize();
-window.addEventListener('resize',resize); // FIXED: 視窗縮放時同步重算全螢幕 Canvas
+window.addEventListener('resize',resize);
+if(window.visualViewport)window.visualViewport.addEventListener('resize',resize); // FIXED: 手機網址列收合/展開時同步重算畫面 // FIXED: 視窗縮放時同步重算全螢幕 Canvas
 
 // ── PERSISTENT STATE ──
 let coins=0;
@@ -505,9 +511,9 @@ function drawExplosion(x,y,t,big){
 }
 function drawPowerup(x,y,type){
   ctx.save();ctx.translate(x,y);
-  const cols={spread:'#cc88ff',laser:'#00ffcc',shield:'#00ff88',bomb:'#ff4400',hp:'#ff66aa',coin:'#ffd700',revive:'#66ffaa'}; // FIXED: 新增組隊復活道具顏色
-  const labels={spread:'SPD',laser:'LSR',shield:'SLD',bomb:'BMB',hp:'+HP',coin:'$',revive:'REV'}; // FIXED: 新增組隊復活道具圖示文字
-  const effects={spread:'散彈',laser:'雷射',shield:'護盾',bomb:'炸彈+1',hp:'血量+1',coin:'金幣+5',revive:'復活隊友'}; // FIXED: 新增組隊復活道具效果文字
+  const cols={spread:'#cc88ff',laser:'#00ffcc',shield:'#00ff88',bomb:'#ff4400',hp:'#ff66aa',coin:'#ffd700',revive:'#66ffaa',randomShot:'#ffffff'}; // FIXED: 新增5秒隨機攻擊道具顏色
+  const labels={spread:'SPD',laser:'LSR',shield:'SLD',bomb:'BMB',hp:'+HP',coin:'$',revive:'REV',randomShot:'RND'}; // FIXED: 新增5秒隨機攻擊道具圖示文字
+  const effects={spread:'散彈',laser:'雷射',shield:'護盾',bomb:'炸彈+1',hp:'血量+1',coin:'金幣+5',revive:'復活隊友',randomShot:'隨機攻擊5秒'}; // FIXED: 新增5秒隨機攻擊道具效果文字
   ctx.fillStyle=cols[type]||'#fff';
   ctx.beginPath();for(let i=0;i<6;i++){const a=(i/6)*Math.PI*2-Math.PI/6;ctx.lineTo(Math.cos(a)*14,Math.sin(a)*14);}ctx.closePath();ctx.fill();
   ctx.fillStyle='#000';ctx.font='bold 8px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(labels[type]||'?',0,0);
@@ -800,6 +806,56 @@ function drawTitle(){
   titleExplosions.forEach(e=>drawExplosion(e.x,e.y,e.t,e.big));
   if(titleTick%85===0){const e=titleDemoEnemies[Math.floor(Math.random()*3)];titleExplosions.push({x:e.x,y:e.y,t:0,big:e.type>=2});}
 
+  // FIXED: 手機版標題畫面改為直向大版面，避免三欄壓縮過小
+  if(W<=760){ // FIXED: 手機/小平板都使用放大版標題畫面，避免落入桌機三欄版而過小
+    uiZones=[];
+    const pad=Math.max(10,Math.floor(W*0.035)); // FIXED: 手機版減少邊界，讓內容放大
+    const fullW=W-pad*2;
+    const topY=Math.max(42,Math.floor(H*0.055)); // FIXED: 手機版標題更靠上，釋放可用高度
+    const titleH=Math.min(340,Math.max(300,Math.floor(H*0.48))); // FIXED: 手機版主標題區加高
+    const titleX=pad;
+    const cx=W/2;
+
+    panel(titleX,topY,fullW,titleH);
+    ctx.textAlign='center';
+    ctx.fillStyle='#ffd700';ctx.font='700 13px Courier New';ctx.textAlign='right';ctx.fillText('💰 '+coins,titleX+fullW-16,topY+22);ctx.textAlign='center'; // FIXED
+    ctx.fillStyle='#ffe066';ctx.font='900 38px Courier New';ctx.fillText('AIR FORCE',cx,topY+58); // FIXED: 手機版主標題放大
+    ctx.fillStyle='#ff4466';ctx.font='900 66px Courier New';ctx.fillText('1945',cx,topY+124); // FIXED: 手機版年份大字放大
+    ctx.fillStyle='rgba(255,230,102,0.13)';ctx.beginPath();ctx.roundRect(titleX+18,topY+144,fullW-36,46,8);ctx.fill(); // FIXED: 手機版模式提示區下移放大
+    ctx.fillStyle='#ffe066';ctx.font='700 15px Courier New';
+    if(Math.floor(titleTick/30)%2===0)ctx.fillText('▶ 選擇模式開始 ◀',cx,topY+174); // FIXED
+    ctx.fillStyle='#888';ctx.font='12px Courier New';
+    ['單人：左下移動　右下炸彈','組隊：P1左側　P2右側','擊落敵機拿金幣','20關卡通關！'].forEach((t,i)=>ctx.fillText(t,cx,topY+208+i*20)); // FIXED: 手機版說明文字加大間距
+
+    const btnW=fullW-44;
+    btn(titleX+22,topY+titleH-86,btnW,36,'單人模式',true,'#ffe066'); // FIXED: 手機版開始鍵加高
+    btn(titleX+22,topY+titleH-42,btnW,36,'組隊模式',false,'#66ffaa'); // FIXED: 手機版開始鍵加高
+    addZone(titleX+22,topY+titleH-86,btnW,36,()=>startGame('single')); // FIXED
+    addZone(titleX+22,topY+titleH-42,btnW,36,()=>startGame('coop')); // FIXED
+
+    const lbY=topY+titleH+10;
+    const lbH=Math.min(170,Math.max(138,H-lbY-178)); // FIXED: 手機版排行榜區加高，前5名更清楚
+    drawLeaderboard(pad,lbY,fullW,lbH); // FIXED
+
+    const shopY=lbY+lbH+10;
+    const shopH=Math.max(132,Math.min(160,H-shopY-10)); // FIXED: 手機版商店入口區加高
+    panel(pad,shopY,fullW,shopH,'rgba(0,200,255,0.3)');
+    const selPl=getPlaneById(selectedPlane); // FIXED
+    const spv=getPlaneVisual(selPl); // FIXED
+    drawPlane(pad+62,shopY+62,1.15,spv.color,spv.accent,selPl.shot,titleTick); // FIXED
+    ctx.textAlign='left';
+    ctx.fillStyle='#00ccff';ctx.font='900 16px Courier New';ctx.fillText('✈ SHOP',pad+118,shopY+30); // FIXED
+    ctx.fillStyle=selPl.color;ctx.font='700 13px Courier New';ctx.fillText(selPl.name,pad+118,shopY+52); // FIXED
+    ctx.fillStyle='#777';ctx.font='11px Courier New';ctx.fillText(ownedPlanes.length+'/'+PLANES.length+' 飛機　'+ownedSkins.length+'/'+SKINS.length+' 皮膚',pad+118,shopY+72); // FIXED
+    const half=(fullW-34)/2;
+    btn(pad+14,shopY+shopH-42,half,30,'機庫商店',true,'#00ccff'); // FIXED
+    btn(pad+20+half,shopY+shopH-42,half,30,'皮膚店',true,'#ff9de6'); // FIXED
+    addZone(pad+14,shopY+shopH-42,half,30,()=>{phase='shop';}); // FIXED
+    addZone(pad+20+half,shopY+shopH-42,half,30,()=>{phase='skinshop';}); // FIXED
+    ctx.textAlign='center';
+    return;
+  }
+
   // LAYOUT: title | leaderboard | shop-btn
   const totalW=Math.min(W-20,640);
   const startX=(W-totalW)/2;
@@ -891,7 +947,7 @@ function initGs(){
     hp:pl.hp,maxhp:pl.hp,invince:0,
     p2x:W*0.58,p2y:H-80,p2vx:0,p2vy:0,p2hp:gameMode==='coop'?pl.hp:0,p2maxhp:pl.hp,p2invince:0,p2shield:0,p2bombs:pl.bombs,p2shotTimer:0,p2alive:gameMode==='coop', // FIXED: 組隊模式第二台我方飛機
     score:0,level:1,tick:0,
-    shotTimer:0,shotType:pl.shot,
+    shotTimer:0,shotType:pl.shot,randomShotTimer:0,randomShotType:'normal',randomShotSwitch:0, // FIXED: 5秒隨機攻擊道具狀態
     bombs:pl.bombs,shield:0,
     enemies:[],bullets:[],ebullets:[],
     explosions:[],powerups:[],bombEffects:[],magnetCoins:[], // FIXED: 擊殺掉落金幣改為自動吸附物件
@@ -986,11 +1042,22 @@ function updateMagnetCoins(s,dt){ // FIXED: 只有擊殺掉落金幣會自動吸
   });
 }
 
+const RANDOM_SHOT_TYPES=['normal','spread','laser']; // FIXED: 隨機攻擊道具可切換的攻擊方式
+function getActiveShotType(s){ // FIXED: 道具期間每0.35秒隨機切換一次攻擊方式
+  if(s.randomShotTimer>0){
+    if(s.tick>=s.randomShotSwitch){
+      s.randomShotSwitch=s.tick+21;
+      s.randomShotType=RANDOM_SHOT_TYPES[Math.floor(Math.random()*RANDOM_SHOT_TYPES.length)];
+    }
+    return s.randomShotType;
+  }
+  return s.shotType;
+}
 function firePlayerBullets(s,dt){
   const pl=getPlaneById(s.planeId); // FIXED: 用飛機 id 取資料，不用陣列 index
   function fireFrom(x,y,timerKey){
     s[timerKey]-=dt;if(s[timerKey]>0)return;
-    const bt=s.shotType;
+    const bt=getActiveShotType(s); // FIXED: 隨機攻擊道具期間改用即時攻擊方式
     if(bt==='normal'||bt===undefined){s[timerKey]=0.12;s.bullets.push({x,y:y-20,vx:0,vy:-580,type:'player',dmg:1});}
     else if(bt==='spread'){s[timerKey]=0.09;[-22,-11,0,11,22].forEach(a=>{const rad=a*Math.PI/180;s.bullets.push({x,y:y-20,vx:Math.sin(rad)*500,vy:-Math.cos(rad)*500,type:'spread',dmg:1});});}
     else if(bt==='laser'){s[timerKey]=0.04;s.bullets.push({x,y:y-20,vx:0,vy:-950,type:'laser',dmg:2});}
@@ -1054,7 +1121,7 @@ function updateGame(dt){
   if(s.hp>0){s.pvx+=(ax*xSpd-s.pvx)*Math.min(dt*12,1);s.pvy+=(ay*pspd-s.pvy)*Math.min(dt*12,1);s.px+=s.pvx*dt;s.py+=s.pvy*dt;} // FIXED
   s.px=Math.max(20,Math.min(W-20,s.px));s.py=Math.max(30,Math.min(H-30,s.py));
   if(s.mode==='coop'&&s.p2hp>0){s.p2vx+=(p2ax*xSpd-s.p2vx)*Math.min(dt*12,1);s.p2vy+=(p2ay*pspd-s.p2vy)*Math.min(dt*12,1);s.p2x+=s.p2vx*dt;s.p2y+=s.p2vy*dt;s.p2x=Math.max(20,Math.min(W-20,s.p2x));s.p2y=Math.max(30,Math.min(H-30,s.p2y));} // FIXED
-  if(s.invince>0)s.invince-=dt;if(s.shield>0)s.shield-=dt;if(s.p2invince>0)s.p2invince-=dt;if(s.p2shield>0)s.p2shield-=dt; // FIXED
+  if(s.invince>0)s.invince-=dt;if(s.shield>0)s.shield-=dt;if(s.p2invince>0)s.p2invince-=dt;if(s.p2shield>0)s.p2shield-=dt;if(s.randomShotTimer>0)s.randomShotTimer-=dt; // FIXED: 隨機攻擊道具只維持5秒
   if(s.comboTimer>0)s.comboTimer-=dt;else if(s.combo>0)s.combo=0;
   firePlayerBullets(s,dt);
   if(keys['KeyX']||keys['KeyZ']||(keys._mobileBombPressed&&s.mode!=='coop')){if(!keys._bombHeld&&s.bombs>0&&s.hp>0){keys._bombHeld=true;s.bombs--;s.enemies.forEach(e=>{e.hp=0;e.dead=true;});if(s.boss)s.boss.hp=Math.max(1,s.boss.hp-30);s.bombEffects=[{timer:0.7}];flashMsg('P1 BOMB!','#ff8800');}}else keys._bombHeld=false; // FIXED
@@ -1099,7 +1166,8 @@ function updateGame(dt){
           s.explosions.push({x:e.x,y:e.y,frame:0,maxFrame:20,big:e.type>=2});
           const rnd=Math.random();const teammateDown=s.mode==='coop'&&((s.hp<=0&&s.p2hp>0)||(s.p2hp<=0&&s.hp>0)); // FIXED: 僅組隊且有隊友倒下時提高復活道具掉落機會
           if(teammateDown&&rnd<0.18)s.powerups.push({x:e.x,y:e.y,type:'revive',vy:60}); // FIXED: 擊落敵機有機會掉落復活隊友道具
-          else if(rnd<0.15)s.powerups.push({x:e.x,y:e.y,type:'hp',vy:60});else if(rnd<0.25)s.powerups.push({x:e.x,y:e.y,type:'bomb',vy:60});else if(rnd<0.35)s.powerups.push({x:e.x,y:e.y,type:'shield',vy:60}); // FIXED: 擊殺金幣已改為自動吸附，不再混入需碰撞拾取的金幣道具
+          else if(rnd<0.10)s.powerups.push({x:e.x,y:e.y,type:'randomShot',vy:60}); // FIXED: 新增5秒隨機攻擊道具掉落
+          else if(rnd<0.18)s.powerups.push({x:e.x,y:e.y,type:'hp',vy:60});else if(rnd<0.28)s.powerups.push({x:e.x,y:e.y,type:'bomb',vy:60});else if(rnd<0.38)s.powerups.push({x:e.x,y:e.y,type:'shield',vy:60}); // FIXED: 擊殺金幣已改為自動吸附，不再混入需碰撞拾取的金幣道具
           if(s.combo>=3)flashMsg('COMBO x'+s.combo+'!','#ffee00');
           coinEl.textContent='💰 '+coins;
         }
@@ -1134,6 +1202,7 @@ function updateGame(dt){
       if(p.type==='hp'){if(p2Hit)s.p2hp=Math.min(s.p2maxhp,s.p2hp+1);else s.hp=Math.min(s.maxhp,s.hp+1);flashMsg('+1 HP','#ff88aa');}
       else if(p.type==='bomb'){if(p2Hit)s.p2bombs++;else s.bombs++;flashMsg('BOMB +1','#ff8800');}
       else if(p.type==='shield'){if(p2Hit)s.p2shield=8;else s.shield=8;flashMsg('SHIELD ON','#00ff88');}
+      else if(p.type==='randomShot'){s.randomShotTimer=5;s.randomShotSwitch=0;flashMsg('RANDOM SHOT 5 SEC!','#ffffff');} // FIXED: 拾取後5秒內隨機改變攻擊方式
       else if(p.type==='revive'){ // FIXED: 組隊模式復活倒下隊友
         if(s.mode==='coop'&&s.hp<=0&&s.p2hp>0){s.hp=Math.max(1,Math.ceil(s.maxhp/2));s.invince=2;flashMsg('P1 REVIVED!','#66ffaa');}
         else if(s.mode==='coop'&&s.p2hp<=0&&s.hp>0){s.p2hp=Math.max(1,Math.ceil(s.p2maxhp/2));s.p2invince=2;s.p2alive=true;flashMsg('P2 REVIVED!','#66ffaa');}
@@ -1165,7 +1234,7 @@ function drawGame(){
   const inv=s.invince>0&&Math.floor(s.invince*10)%2===0;
   if(!inv&&s.hp>0){
     if(s.shield>0){ctx.save();ctx.strokeStyle='rgba(0,255,136,0.7)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(s.px,s.py,28,0,Math.PI*2);ctx.stroke();ctx.restore();}
-    if(s.shotType==='laser'){ctx.strokeStyle='rgba(0,255,200,0.1)';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(s.px,s.py-20);ctx.lineTo(s.px,0);ctx.stroke();}
+    if(getActiveShotType(s)==='laser'){ctx.strokeStyle='rgba(0,255,200,0.1)';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(s.px,s.py-20);ctx.lineTo(s.px,0);ctx.stroke();} // FIXED: 隨機攻擊切到雷射時也顯示雷射光束
     const gpV=getPlaneVisual(pl); // FIXED: 實戰玩家飛機套用目前皮膚
     drawPlane(s.px,s.py,1.1,gpV.color,gpV.accent,pl.shot,s.tick);
   }
